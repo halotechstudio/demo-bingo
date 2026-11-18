@@ -1,0 +1,1115 @@
+<title>Bingo Gulf Simulator</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+/* Layout: sticky top bar (market, language, sections). Simulator = step strip + "your move" banner,
+   then the three Bingo apps side by side (rider phone, captain phone, ops console), then "why" + regulator feed. */
+:root{
+  --bg:#EFEFEC; --panel:#FFFFFF; --ink:#0F0F0F; --mute:#686B63; --line:#DDDED7; --soft:#F5F5F2; --chip:#EAEAE5;
+  --lime:#C7FF2E; --on-lime:#0F0F0F; --lime-text:#3E5A00;
+  --ok:#1E7F46; --warn:#9A5B00; --bad:#C43C3C; --okbg:#E3F4E8; --warnbg:#FBEFD9; --badbg:#FBE4E4;
+  --display:'Urbanist','Inter',system-ui,sans-serif; --body:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --arabic:'IBM Plex Sans Arabic','Segoe UI','Tahoma',sans-serif; --mono:'JetBrains Mono',ui-monospace,Consolas,monospace;
+  --pb:#C7FF2E;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0B0B0B; --panel:#161616; --ink:#F1F2EE; --mute:#9B9E96; --line:#2A2B28; --soft:#1D1E1C; --chip:#252623;
+  --lime-text:#C7FF2E; --ok:#5ED493; --warn:#F2B44A; --bad:#FF7070; --okbg:#15301F; --warnbg:#33270F; --badbg:#3A1717; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0B0B0B; --panel:#161616; --ink:#F1F2EE; --mute:#9B9E96; --line:#2A2B28; --soft:#1D1E1C; --chip:#252623;
+  --lime-text:#C7FF2E; --ok:#5ED493; --warn:#F2B44A; --bad:#FF7070; --okbg:#15301F; --warnbg:#33270F; --badbg:#3A1717; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--panel)}
+button{font:inherit;color:inherit;cursor:pointer}
+table{color:inherit;font:inherit}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+a{color:inherit}
+.wrap{max-width:1560px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--panel);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding-block:10px}
+.logo{display:flex;align-items:center;gap:10px;font:800 20px/1 var(--display);letter-spacing:-.03em}
+.logo i{width:30px;height:30px;border-radius:10px;background:var(--lime);display:grid;place-items:center;color:#0F0F0F;font-style:normal;font-size:17px}
+.logo small{font:500 11px/1 var(--body);color:var(--mute);letter-spacing:.04em;text-transform:uppercase}
+.nav{display:flex;gap:4px;flex-wrap:wrap;margin-inline-start:auto}
+.nav a{text-decoration:none;padding:8px 12px;border-radius:99px;font-weight:500;color:var(--mute)}
+.nav a[aria-current="page"]{background:var(--ink);color:var(--panel)}
+.seg{display:inline-flex;background:var(--chip);border-radius:99px;padding:3px;flex-wrap:wrap}
+.seg button{border:0;background:transparent;padding:6px 12px;border-radius:99px;font-weight:600;font-size:13px;color:var(--mute)}
+.seg button[aria-pressed="true"]{background:var(--panel);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.disclaimer{font-size:12px;color:var(--mute);padding-block:8px;border-bottom:1px solid var(--line)}
+.disclaimer b{color:var(--ink);font-weight:600}
+
+.view{padding-block:18px 60px}
+h1,h2,h3{font-family:var(--display);letter-spacing:-.025em;text-wrap:balance;margin:0}
+h1{font-size:clamp(28px,3.6vw,44px);font-weight:700;line-height:1.02}
+h2{font-size:23px;font-weight:700;line-height:1.1}
+h3{font-size:17px;font-weight:700}
+.lede{color:var(--mute);max-width:72ch;font-size:15px;margin:10px 0 0}
+.card{background:var(--panel);border-radius:24px;padding:20px;min-width:0}
+.label{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:99px;background:var(--chip);font-size:12px;font-weight:600;white-space:nowrap}
+.pill.lime{background:var(--lime);color:var(--on-lime)}
+.pill.ok{background:var(--okbg);color:var(--ok)} .pill.warn{background:var(--warnbg);color:var(--warn)} .pill.bad{background:var(--badbg);color:var(--bad)}
+.btn{border:0;border-radius:99px;padding:9px 15px;font-weight:600;background:var(--chip);font-size:13px}
+.btn.primary{background:var(--ink);color:var(--panel)}
+.btn:disabled{opacity:.4;cursor:default}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:16px}
+.num{font-variant-numeric:tabular-nums}
+.src{font-size:11px;color:var(--mute)}
+sup a{font-size:10px;text-decoration:none;color:var(--lime-text);font-weight:700;margin-inline-start:2px}
+
+/* step strip */
+.strip{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.steps{list-style:none;margin:0;padding:0 0 4px;display:flex;gap:6px;overflow-x:auto;flex:1 1 640px;min-width:0}
+.stepb{display:flex;gap:8px;align-items:center;border:0;background:var(--panel);padding:7px 12px 7px 7px;border-radius:99px;color:var(--mute);white-space:nowrap;font-size:13px;font-weight:500}
+.stepb b{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--chip);font-size:11px;color:var(--ink)}
+.stepb.done b{background:var(--ink);color:var(--panel)}
+.stepb[aria-current="step"]{background:var(--ink);color:var(--panel)}
+.stepb[aria-current="step"] b{background:var(--lime);color:var(--on-lime)}
+.swatches{display:flex;gap:6px;align-items:center}
+.swatches button{width:26px;height:26px;border-radius:50%;border:2px solid transparent;background:var(--c)}
+.swatches button[aria-pressed="true"]{border-color:var(--ink);box-shadow:0 0 0 2px var(--panel) inset}
+.move{margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--panel);border-radius:18px;padding:10px 14px}
+.move .who{font:700 11px/1 var(--body);letter-spacing:.08em;text-transform:uppercase;background:var(--lime);color:var(--on-lime);padding:6px 10px;border-radius:99px}
+.move p{margin:0;font-weight:500;flex:1 1 300px}
+
+/* stage */
+.stage{display:flex;gap:16px;align-items:flex-start;justify-content:center;flex-wrap:wrap;margin-top:16px}
+.appcol{display:flex;flex-direction:column;gap:8px;align-items:center;min-width:0}
+.appcol .label{align-self:flex-start;padding-inline-start:8px;display:flex;gap:8px;align-items:center}
+.appcol.actor .label::after{content:"Your move";background:var(--lime);color:var(--on-lime);border-radius:99px;padding:2px 8px;font-size:10px;letter-spacing:.06em}
+.apptabs{display:none;justify-content:center;margin-top:12px}
+.phone{width:300px;height:640px;border-radius:46px;background:#050505;padding:9px;box-shadow:0 18px 40px rgba(0,0,0,.18);flex:none;transition:box-shadow .3s}
+.actor .phone,.actor .console{box-shadow:0 0 0 4px var(--pb),0 18px 40px rgba(0,0,0,.2)}
+.consolecol{flex:1 1 520px;max-width:640px}
+
+/* phone screens (fixed Bingo device look) */
+.scr{position:relative;width:100%;height:100%;border-radius:38px;overflow:hidden;background:#fff;color:#0F0F0F;font-family:var(--body);display:flex;flex-direction:column}
+.scr.dark{background:#0F0F0F;color:#fff}
+.scr[dir="rtl"]{font-family:var(--arabic)}
+.scr[dir="rtl"] .d{font-family:var(--arabic);letter-spacing:0}
+.sbar{display:flex;justify-content:space-between;padding:12px 22px 4px;font-size:12px;font-weight:600;flex:none}
+.sbar .isl{width:88px;height:24px;background:#050505;border-radius:20px;margin-top:-4px}
+.pbody{flex:1;overflow:hidden;padding:6px 16px 16px;display:flex;flex-direction:column;gap:10px;min-height:0}
+.d{font-family:var(--display);letter-spacing:-.02em;font-weight:700;line-height:1.05}
+.pm{color:#777}
+.dark .pm{color:#9a9a9a}
+.pchip{display:inline-flex;align-items:center;gap:6px;background:#F0F0F0;border-radius:99px;padding:6px 12px;font-size:12px;font-weight:600;border:0;color:inherit}
+.dark .pchip{background:#222}
+.pchip.br{background:var(--pb);color:#0F0F0F}
+.pcard{background:#F4F4F4;border-radius:22px;padding:12px 14px}
+.dark .pcard{background:#1A1A1A}
+.vrow{display:flex;justify-content:space-between;align-items:center;gap:10px;border:0;width:100%;text-align:start;font:inherit;color:inherit}
+.vrow.sel{background:#0F0F0F;color:#fff}
+.vrow.sel .price{color:var(--pb)}
+.vrow .ico{width:48px;height:48px;border-radius:16px;background:#fff;display:grid;place-items:center;flex:none}
+.vrow.sel .ico{background:var(--pb)}
+.price{font:800 21px/1 var(--display);letter-spacing:-.02em}
+.cur{font-size:.6em;font-weight:700;margin-inline-end:3px}
+.cta{display:flex;align-items:center;justify-content:space-between;background:var(--pb);color:#0F0F0F;border-radius:26px;padding:10px 10px 10px 18px;border:0;width:100%;text-align:start;font:inherit;flex:none}
+.cta .go{width:42px;height:42px;border-radius:50%;background:#0F0F0F;color:#fff;display:grid;place-items:center;flex:none}
+.cta:disabled{opacity:.35;cursor:default}
+.dark .cta.ghost{background:#222;color:#fff}
+[dir="rtl"] .flip{transform:scaleX(-1)}
+.field{background:#F2F2F2;border-radius:18px;padding:12px 14px;display:flex;gap:10px;align-items:center;font-weight:600;font-size:16px}
+.otp{display:flex;gap:6px;justify-content:center}
+.otp span{width:36px;height:46px;border-radius:12px;background:#F0F0F0;display:grid;place-items:center;font:800 22px/1 var(--display)}
+.otp span.f{background:var(--pb)}
+.tick{display:flex;gap:8px;align-items:flex-start;font-size:11.5px}
+.tick i{flex:none;width:18px;height:18px;border-radius:6px;background:#0F0F0F;color:var(--pb);display:grid;place-items:center;font-style:normal;font-size:12px}
+.map{border-radius:22px;overflow:hidden;flex:none;background:#121212;position:relative}
+.map svg{display:block;width:100%;height:auto}
+.plate{display:inline-flex;flex-direction:column;align-items:center;background:#FFD43B;color:#0F0F0F;border-radius:8px;padding:2px 8px;font:700 12px/1.15 var(--body);border:1.5px solid #0F0F0F;white-space:nowrap}
+.plate small{font-size:9px;font-weight:600}
+.pinbox{display:flex;gap:6px}
+.pinbox span{width:40px;height:48px;border-radius:12px;background:#F0F0F0;display:grid;place-items:center;font:800 24px/1 var(--display)}
+.dark .pinbox span{background:#1F1F1F}
+.pinbox span.f{background:var(--pb);color:#0F0F0F}
+.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.keypad button{background:#1A1A1A;border:0;border-radius:12px;padding:9px 0;text-align:center;font:600 17px/1 var(--display);color:#fff}
+.keypad button:active{background:#333}
+.swipe{position:relative;height:56px;border-radius:30px;background:var(--pb);color:#0F0F0F;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;user-select:none;touch-action:none;flex:none;cursor:pointer}
+.swipe .knob{position:absolute;inset-inline-start:5px;top:5px;width:46px;height:46px;border-radius:50%;background:#0F0F0F;color:var(--pb);display:grid;place-items:center;cursor:grab;transition:transform .2s}
+.swipe.drag .knob{transition:none}
+.ring{position:relative;width:62px;height:62px}
+.ring svg{transform:rotate(-90deg)}
+.ring b{position:absolute;inset:0;display:grid;place-items:center;font:700 22px/1 var(--display)}
+.doc{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid #222;font-size:12.5px}
+.doc:last-child{border-bottom:0}
+.doc button{border:0;border-radius:99px;padding:5px 10px;font-size:11px;font-weight:700;background:#2A2A2A;color:#fff}
+.doc button.ok{background:var(--pb);color:#0F0F0F}
+.face{width:160px;height:160px;border-radius:50%;margin:8px auto 0;position:relative;background:radial-gradient(circle at 50% 42%,#3a3a3a 0 26%,#262626 27% 60%,#1a1a1a 61%);border:3px solid #333;overflow:hidden}
+.face.scan::after{content:"";position:absolute;left:0;right:0;height:3px;background:var(--pb);box-shadow:0 0 14px var(--pb);top:10%;animation:scan 1.2s ease-in-out infinite alternate}
+.face.ok{border-color:var(--pb)}
+@keyframes scan{to{top:88%}}
+.tog{width:52px;height:30px;border-radius:99px;background:#333;position:relative;flex:none}
+.tog i{position:absolute;top:3px;inset-inline-start:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:.3s}
+.tog.on{background:var(--pb)} .tog.on i{inset-inline-start:25px;background:#0F0F0F}
+.pulse{position:relative;width:140px;height:140px;margin:16px auto 6px;display:grid;place-items:center}
+.pulse i{position:absolute;inset:0;border-radius:50%;border:2px solid var(--pb);animation:pl 2s ease-out infinite;opacity:0}
+.pulse i:nth-child(2){animation-delay:.66s}.pulse i:nth-child(3){animation-delay:1.33s}
+.pulse b{width:60px;height:60px;border-radius:50%;background:var(--pb);display:grid;place-items:center}
+@keyframes pl{from{transform:scale(.4);opacity:.9}to{transform:scale(1.1);opacity:0}}
+.stars{display:flex;gap:4px;justify-content:center}
+.stars button{border:0;background:none;font-size:30px;line-height:1;color:#D8D8D8;padding:0 2px}
+.stars button.on{color:#0F0F0F}
+.inv{background:#fff;border:1px solid #E6E6E6;border-radius:18px;padding:12px;font-size:11.5px;display:flex;flex-direction:column;gap:5px}
+.inv .r{display:flex;justify-content:space-between;gap:8px}
+.inv .tot{font:800 16px/1 var(--display)}
+.qr{width:84px;height:84px;flex:none;background:#fff}
+.qr img,.qr canvas{width:84px!important;height:84px!important}
+.sos{background:#FF4D4D!important;color:#fff!important}
+.note{background:#0F0F0F;color:#fff;border-radius:16px;padding:10px 12px;font-size:11.5px}
+
+/* console (Bingo admin look, fixed light) */
+.console{width:100%;height:640px;border-radius:22px;background:#EFEFEC;color:#0F0F0F;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 18px 40px rgba(0,0,0,.15);font-family:var(--body);font-size:13px}
+.cbar{display:flex;align-items:center;gap:10px;padding:9px 14px;background:#E2E2DE;flex:none}
+.cbar i{width:10px;height:10px;border-radius:50%;background:#C9C9C4;display:inline-block}
+.cbar .url{flex:1;background:#fff;border-radius:99px;padding:4px 12px;font:500 11.5px var(--mono);color:#555}
+.cwrap{display:flex;flex:1;min-height:0}
+.cnav{width:118px;flex:none;background:#0F0F0F;color:#fff;padding:12px 8px;display:flex;flex-direction:column;gap:4px}
+.cnav .brand{font:800 16px/1 var(--display);padding:4px 8px 12px;display:flex;align-items:center;gap:6px}
+.cnav .brand i{width:18px;height:18px;border-radius:6px;background:var(--pb);display:inline-block}
+.cnav button{border:0;background:transparent;color:#9a9a9a;text-align:start;padding:8px 10px;border-radius:10px;font-size:12.5px;font-weight:500;display:flex;justify-content:space-between;align-items:center}
+.cnav button[aria-pressed="true"]{background:#222;color:#fff}
+.cnav button em{font-style:normal;background:var(--pb);color:#0F0F0F;border-radius:99px;font-size:10px;font-weight:700;padding:1px 6px}
+.cnav button em.r{background:#FF4D4D;color:#fff}
+.cmain{flex:1;min-width:0;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.chead{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.chead h3{font:800 22px/1 var(--display)}
+.ctiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.ctile{background:#fff;border-radius:16px;padding:10px 12px;min-width:0}
+.ctile.hi{background:#0F0F0F;color:#fff}
+.ctile .v{font:800 21px/1.1 var(--display);margin-top:3px}
+.ctile .v.g{color:var(--pb)}
+.ctile .s{font-size:10.5px;color:#777}
+.ctile.hi .s{color:#9a9a9a}
+.cl{font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#777}
+.ccard{background:#fff;border-radius:16px;padding:12px}
+.crow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #EEE;font-size:12.5px}
+.crow:last-child{border-bottom:0}
+.cpill{display:inline-flex;align-items:center;gap:4px;border-radius:99px;padding:3px 8px;font-size:10.5px;font-weight:700;white-space:nowrap;background:#EEE;color:#333}
+.cpill.ok{background:#E3F4E8;color:#1E7F46} .cpill.warn{background:#FBEFD9;color:#9A5B00} .cpill.bad{background:#FBE4E4;color:#C43C3C} .cpill.br{background:var(--pb);color:#0F0F0F} .cpill.dk{background:#0F0F0F;color:var(--pb)}
+.cbtn{border:0;border-radius:99px;padding:8px 14px;font-weight:700;font-size:12.5px;background:#0F0F0F;color:#fff}
+.cbtn.br{background:var(--pb);color:#0F0F0F}
+.cbtn.ghost{background:#EEE;color:#0F0F0F}
+.cbtn.red{background:#FF4D4D;color:#fff}
+.ctable{width:100%;border-collapse:collapse;font-size:12px}
+.ctable td,.ctable th{padding:6px 6px;border-bottom:1px solid #EEE;text-align:start}
+.ctable th{font-size:10px;color:#777;text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+.tl{display:flex;flex-direction:column;gap:0}
+.tl div{display:flex;gap:10px;align-items:center;padding:5px 0;font-size:12.5px;color:#999}
+.tl div i{width:12px;height:12px;border-radius:50%;background:#DDD;flex:none}
+.tl div.on{color:#0F0F0F}.tl div.on i{background:#0F0F0F;box-shadow:0 0 0 3px var(--pb)}
+.alert{background:#FF4D4D;color:#fff;border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:6px}
+.feedmini{display:flex;flex-direction:column;gap:6px}
+.feedmini div{display:flex;gap:8px;align-items:flex-start;font-size:12px}
+.feedmini b{font:600 10px var(--mono);background:#EEE;border-radius:6px;padding:2px 5px;flex:none}
+
+/* why + feed */
+.lower{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px;margin-top:18px;align-items:start}
+.why h2{margin-top:6px}
+.why p{margin:10px 0 0;max-width:80ch}
+.pitch{margin-top:14px;padding:12px 14px;border-radius:16px;background:var(--soft);font-size:13.5px}
+.pitch b{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin-bottom:2px}
+.rules{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.rule{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;font-size:13.5px}
+.tag{font:600 11px/1 var(--mono);padding:5px 8px;border-radius:8px;background:var(--ink);color:var(--panel);white-space:nowrap;margin-top:1px}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+.split>div{background:var(--soft);border-radius:16px;padding:12px 14px;min-width:0}
+.split ul{margin:6px 0 0;padding-inline-start:18px;font-size:13px;display:flex;flex-direction:column;gap:3px}
+.feed{display:flex;flex-direction:column;gap:6px;margin-top:12px;max-height:560px;overflow:auto}
+.ev{border:1px solid var(--line);border-radius:14px;padding:8px 10px;background:var(--panel)}
+.ev.now{border-color:var(--ink)}
+.ev summary{display:flex;align-items:center;gap:8px;cursor:pointer;list-style:none;font-size:13px}
+.ev summary::-webkit-details-marker{display:none}
+.ev time{font:500 11px var(--mono);color:var(--mute);margin-inline-start:auto;white-space:nowrap}
+.ch{font:600 10.5px/1 var(--mono);padding:4px 6px;border-radius:6px;background:var(--chip);white-space:nowrap}
+.ch.reg{background:var(--lime);color:var(--on-lime)}
+.ch.tax{background:#2B2F8F;color:#fff}
+.ch.pay{background:#0E6B5C;color:#fff}
+.ch.data{background:#6B2B8F;color:#fff}
+.ch.alert{background:#C43C3C;color:#fff}
+pre{margin:8px 0 0;padding:10px;border-radius:10px;background:var(--soft);font:12px/1.5 var(--mono);overflow-x:auto;white-space:pre}
+
+/* other views */
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));gap:16px;margin-top:20px}
+table.ct{width:100%;border-collapse:collapse;font-size:13px}
+table.ct th,table.ct td{padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top;text-align:start}
+table.ct th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);font-weight:600}
+table.ct td.n{text-align:end;white-space:nowrap;font-variant-numeric:tabular-nums}
+table.ct tr.tot td{font-weight:700;border-bottom:0;border-top:2px solid var(--ink)}
+.scrollx{overflow-x:auto}
+.timeline{list-style:none;margin:14px 0 0;padding:0;display:flex;flex-direction:column}
+.timeline li{display:grid;grid-template-columns:28px 1fr;gap:12px;padding-bottom:14px;position:relative}
+.timeline li::before{content:"";position:absolute;inset-inline-start:13px;top:26px;bottom:0;width:2px;background:var(--line)}
+.timeline li:last-child::before{display:none}
+.timeline b{width:28px;height:28px;border-radius:50%;background:var(--ink);color:var(--panel);display:grid;place-items:center;font-size:12px}
+.timeline p{margin:2px 0 0;color:var(--mute);font-size:13px}
+.calc{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:16px;margin-top:20px}
+.fld{display:flex;flex-direction:column;gap:4px;margin-top:12px}
+.fld label{display:flex;justify-content:space-between;font-size:13px;font-weight:500}
+.fld label output{font-variant-numeric:tabular-nums;font-weight:700}
+input[type=range]{width:100%;accent-color:var(--ink)}
+select{font:inherit;padding:8px 10px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+.out{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}
+.out b{font-variant-numeric:tabular-nums}
+.out.big{font-size:17px;border-bottom:0;padding-top:14px}
+.out.big b{font:800 26px/1 var(--display)}
+.tiers{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:14px;margin-top:20px}
+.tier{background:var(--panel);border-radius:24px;padding:20px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.tier.hero{background:var(--ink);color:var(--panel)}
+.tier.hero .tm{color:inherit;opacity:.7}
+.tier .p{font:800 34px/1 var(--display);letter-spacing:-.03em}
+.tier .tm{color:var(--mute);font-size:13px}
+.tier ul{margin:0;padding-inline-start:18px;font-size:13px;display:flex;flex-direction:column;gap:4px}
+.seglist{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:14px;margin-top:20px}
+.seglist .card{display:flex;flex-direction:column;gap:8px}
+.seglist .row{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.qa{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.qa div{background:var(--soft);border-radius:14px;padding:10px 14px;font-size:13.5px}
+.qa b{display:block}
+.srclist{columns:2 320px;font-size:12.5px;margin:12px 0 0;padding-inline-start:20px}
+.srclist li{margin-bottom:4px;break-inside:avoid}
+
+@media (max-width:1100px){ .lower{grid-template-columns:minmax(0,1fr)} }
+@media (max-width:760px){
+  .apptabs{display:flex}
+  .stage .appcol{display:none}
+  .stage .appcol.on{display:flex}
+  .consolecol{flex-basis:100%}
+  .split{grid-template-columns:1fr}
+  .nav{margin-inline-start:0}
+  .ctiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cnav{width:52px}.cnav button span,.cnav .brand span{display:none}
+}
+@media (max-width:340px){.phone{transform:scale(.9);transform-origin:top center}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* screenshot mode for the brochure */
+body.shot{background:transparent}
+body.shot::before,body.shot .top,body.shot .disclaimer,body.shot .strip,body.shot .move,body.shot .lower,body.shot .apptabs,body.shot .appcol .label{display:none!important}
+body.shot .view{padding:0}
+body.shot .wrap{padding:0;max-width:none}
+body.shot .stage{margin:0;display:block}
+body.shot .stage .appcol{display:none}
+body.shot .stage .appcol.on{display:flex}
+body.shot .phone{box-shadow:none!important;width:282px;height:610px;padding:0;border-radius:0;background:transparent}
+body.shot .scr{border-radius:0}
+body.shot .appcol.on{position:fixed;left:0;top:0;align-items:flex-start}
+body.shot .consolecol.on{width:100vw;max-width:none}
+body.shot .console{border-radius:0;box-shadow:none!important;height:100vh}
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="logo"><i>b</i><div>Bingo Gulf<br><small>HALO Studio · KSA &amp; UAE edition</small></div></div>
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Market">
+        <button id="mk-ksa" data-market="ksa">Riyadh · KSA</button>
+        <button id="mk-uae" data-market="uae">Dubai · UAE</button>
+      </div>
+      <div class="seg" role="group" aria-label="App language">
+        <button id="lg-en" data-lang="en">English</button>
+        <button id="lg-ar" data-lang="ar" lang="ar">العربية</button>
+      </div>
+    </div>
+    <nav class="nav" aria-label="Sections">
+      <a href="#sim">Simulator</a>
+      <a href="#rules">Regulations</a>
+      <a href="#money">Business case</a>
+      <a href="#market">Go to market</a>
+      <a href="#pricing">Pricing and budgets</a>
+    </nav>
+  </div>
+</header>
+<div class="wrap disclaimer"><b>Read this first:</b> regulations are summarised from public news and consultancy guides as of November 2026. This is not legal advice. Before quoting a client, confirm with TGA (naql.sa), Dubai RTA and a licensed local adviser. Regulator payloads are illustrative; real API specs come after the client is licensed. Prices are HALO's proposed Gulf prices.</div>
+
+<main id="app"></main>
+
+<script>
+/* ================= sources ================= */
+const SRC = [
+ ['Arab News: 100% Saudization of ride-hailing apps','https://www.arabnews.pk/node/1792081'],
+ ['Arab News: TGA suspends 3 apps; 45 licensed platforms','https://www.arabnews.pk/node/2579183/saudi-arabia'],
+ ['Saudi Gazette: TGA face recognition for drivers (Feb 2026)','https://saudigazette.com.sa/article/658607/saudi-arabia/tga-introduces-facial-recognition-verification-for-ride-hailing-drivers'],
+ ['Curly Tales: impoundment and fines up to SAR 20,000','https://curlytales.com/from-vehicle-impoundment-to-fines-upto-sar20000-heres-all-about-saudi-arabias-new-ride-hailing-rules'],
+ ['Argaam: ride-hailing app revenue SAR 2.3B in 2024','https://www.argaam.com/en/article/articledetail/id/1819544'],
+ ['Saudi Market Entry: TGA services and Naql','https://saudimarketentry.com/tga-services-saudi-arabia/'],
+ ['Saphyroo: TGA rules, deadlines and fines 2026','https://saphyroo.com/sa/blog/tga-saudi/'],
+ ['Morgan Lewis: Saudi cloud compliance and data residency (2026)','https://www.morganlewis.com/blogs/sourcingatmorganlewis/2026/03/saudi-arabia-cloud-compliance-part-1-data-residency-and-contractual-expectations'],
+ ['ZATCA e-invoicing FAQ','https://zatca.gov.sa:443/en/E-Invoicing/Introduction/FAQ/Pages/FAQ_029.aspx'],
+ ['trade.gov: Saudi cross-border data transfer rules','https://www.trade.gov/market-intelligence/saudi-arabia-ict-cross-border-data-transfer-rules-now-under-enforcement'],
+ ['Skimbox: Dubai RTA rules (Admin. Resolution 516 of 2022)','https://www.skimbox.co/en/resources/blogs/ride-hailing-app-development-like-careem'],
+ ['Inlex Partners: Dubai ride-hailing licence guide 2026','https://inlex-partners.com/blog/uber-business-in-uae/'],
+ ['NextBillion: ride-hailing business in the Middle East','https://nextbillion.ai/feeds/blog/ride-hailing-software-middle-east'],
+ ['Ailoo: TGA licence, Saudi launch July 2026','https://www.ailoo.co/blog/en/news/ailoo-receives-tga-license-saudi-arabia-launch-2026'],
+ ['inDrive obtains licence in Saudi Arabia','https://en.sharikatmubasher.com/media-hub/news/21479062/indrive-obtains-license-to-launch-in-saudi-arabia?lang=en'],
+ ['Apptunix: Yango-style app cost in Dubai','https://www.apptunix.com/blog/build-ride-hailing-app-like-yango-in-dubai/'],
+ ['PerfectionGeeks: Careem-like app cost','https://www.perfectiongeeks.com/cost-to-develop-a-careem-like-app'],
+];
+const s=(...ids)=>ids.map(i=>`<sup><a href="${SRC[i-1][1]}" target="_blank" rel="noopener" title="${SRC[i-1][0]}">[${i}]</a></sup>`).join('');
+
+/* ================= market data ================= */
+const MK = {
+ ksa:{ id:'ksa', city:'Riyadh', cur:{en:'SAR',ar:'ر.س'}, vat:15, tz:'Asia/Riyadh', reg:'TGA', sos:'911', usd:3.75, dial:'+966', phone:'55 214 8830', host:'console.bingo.sa',
+  from:{en:'Al Olaya',ar:'العليا'}, to:{en:'KAFD',ar:'المركز المالي'}, toLong:{en:'King Abdullah Financial District',ar:'مركز الملك عبدالله المالي'}, km:9.4, min:19,
+  rider:{en:'Noura Al-Qahtani',ar:'نورة القحطاني'},
+  pays:[{id:'mada',en:'mada',ar:'مدى',sub:'•• 4417'},{id:'apple',en:'Apple Pay',ar:'Apple Pay',sub:''},{id:'stc',en:'STC Pay',ar:'STC Pay',sub:''},{id:'cash',en:'Cash',ar:'نقداً',sub:''}],
+  vehicles:[
+   {id:'economy',en:'Economy',ar:'اقتصادي',seats:4,eta:2,car:'Hyundai Accent 2023',f:[5,1.6,.30,10],tag:{en:'Lowest fare',ar:'أقل سعر'}},
+   {id:'comfort',en:'Comfort',ar:'مريح',seats:4,eta:3,car:'Toyota Camry 2024',f:[6,1.9,.35,12],tag:{en:'Newer sedans, top captains',ar:'سيارات أحدث وكباتن مميزون'}},
+   {id:'ladies',en:'Ladies',ar:'سيدات',seats:4,eta:5,car:'Hyundai Sonata 2023',f:[6,1.9,.35,12],tag:{en:'Women captains for women riders',ar:'كابتن سيدة للراكبات'}},
+   {id:'family',en:'Family',ar:'عائلي',seats:6,eta:6,car:'Hyundai Staria 2024',f:[9,2.4,.45,18],tag:{en:'6 seats, space for luggage',ar:'٦ مقاعد ومساحة للأمتعة'}},
+  ],
+  cap:{ def:{en:'Faisal Al-Harbi',ar:'فيصل الحربي',r:4.9,plate:['ر س ح 4521','RSH 4521'],id:'CP-1042'}, ladies:{en:'Reem Al-Otaibi',ar:'ريم العتيبي',r:4.95,plate:['ن ك ا 7730','NKA 7730'],id:'CP-1077'} },
+  taxId:'310987654300003', seller:{en:'Bingo Mobility Co. (sample)',ar:'شركة بينغو للتنقل (نموذج)'},
+  idp:{en:'Nafath',ar:'نفاذ'}, idBtn:{en:'Verify with Nafath',ar:'التحقق عبر نفاذ'},
+  docs:[{en:'Driving licence',ar:'رخصة القيادة'},{en:'TGA driver card',ar:'بطاقة سائق · هيئة النقل'},{en:'Vehicle registration (istimara)',ar:'رخصة السير (الاستمارة)'},{en:'Vehicle operating card',ar:'بطاقة تشغيل المركبة'},{en:'Insurance',ar:'التأمين'},{en:'Profile photo',ar:'الصورة الشخصية'}],
+  checks:[['Nafath identity','Name and ID match','ok'],['Nationality','Saudi','ok'],['TGA driver card','DC-58821930 · valid to 02 Mar 2027 · via Naql','ok'],['Operating card','OC-4471902 · linked to RSH 4521','ok'],['Vehicle','Toyota Camry 2024 · Comfort class','ok'],['Insurance','Comprehensive · valid to May 2027','ok'],['Violations','No open TGA violations','ok']],
+  passFee:40,
+ },
+ uae:{ id:'uae', city:'Dubai', cur:{en:'AED',ar:'د.إ'}, vat:5, tz:'Asia/Dubai', reg:'RTA', sos:'999', usd:3.6725, dial:'+971', phone:'50 318 4472', host:'console.bingo.ae',
+  from:{en:'Dubai Marina',ar:'دبي مارينا'}, to:{en:'DIFC',ar:'مركز دبي المالي'}, toLong:{en:'Dubai International Financial Centre',ar:'مركز دبي المالي العالمي'}, km:21.6, min:24,
+  rider:{en:'Sara Mendes',ar:'سارة منديز'},
+  pays:[{id:'card',en:'Visa',ar:'فيزا',sub:'•• 2290'},{id:'apple',en:'Apple Pay',ar:'Apple Pay',sub:''},{id:'cash',en:'Cash',ar:'نقداً',sub:''}],
+  vehicles:[
+   {id:'standard',en:'Limo Standard',ar:'ليموزين قياسي',seats:4,eta:3,car:'Toyota Camry 2024',f:[12,2.2,.5,25],tag:{en:'RTA-licensed limousine',ar:'ليموزين مرخّص من الهيئة'}},
+   {id:'executive',en:'Executive',ar:'تنفيذي',seats:4,eta:5,car:'Lexus ES 2025',f:[20,3.2,.7,45],tag:{en:'Hotel and business travel',ar:'للفنادق ورحلات الأعمال'}},
+   {id:'family',en:'Family 7',ar:'عائلي ٧',seats:7,eta:7,car:'Toyota Previa 2024',f:[16,2.8,.6,35],tag:{en:'7 seats, airport luggage',ar:'٧ مقاعد وأمتعة المطار'}},
+  ],
+  cap:{ def:{en:'Imran Shaikh',ar:'عمران شيخ',r:4.9,plate:['دبي R 48213','Dubai R 48213'],id:'CP-2207'} },
+  taxId:'100234567800003', seller:{en:'Al Noor Limousine LLC (sample)',ar:'النور لليموزين ذ.م.م (نموذج)'},
+  idp:{en:'UAE PASS',ar:'الهوية الرقمية'}, idBtn:{en:'Verify with UAE PASS',ar:'التحقق عبر الهوية الرقمية'},
+  docs:[{en:'UAE driving licence',ar:'رخصة القيادة'},{en:'RTA driving permit',ar:'تصريح قيادة · هيئة الطرق'},{en:'Vehicle registration (Mulkiya)',ar:'ملكية المركبة'},{en:'Limousine permit',ar:'تصريح ليموزين'},{en:'Insurance',ar:'التأمين'},{en:'Profile photo',ar:'الصورة الشخصية'}],
+  checks:[['UAE PASS identity','Name and Emirates ID match','ok'],['Fleet partner','Al Noor Limousine LLC · active','ok'],['RTA driving permit','PDP-772190 · valid to 18 Jan 2027','ok'],['Limousine permit','LV-30918 · Dubai R 48213','ok'],['Vehicle','Toyota Camry 2024 · Standard','ok'],['Insurance','Commercial · valid to Mar 2027','ok'],['Record','No open RTA fines','ok']],
+  passFee:45,
+ }
+};
+
+const T = {
+ en:{welcome:'Welcome to Bingo',mobile:'Enter your mobile number',send:'Send code',codeT:'Enter the 6-digit code',sentTo:'Sent by SMS to',expires:'Code expires in 4:58',verifyBtn:'Verify',agree:'I agree to the terms and privacy policy',share:'Share my location while I ride',
+  hello:'Good evening',whereTo:'Where to?',home:'Home',work:'Work',near:n=>`${n} captains nearby`,choose:'Choose your ride',away:n=>`${n} min away`,incl:p=>`incl. ${p}% VAT`,book:'Book',
+  finding:'Finding your captain',findingSub:'Only verified captains with valid documents are offered your ride',coming:'Your captain is on the way',arr:n=>`Arriving in ${n} min`,pin:'Ride PIN',pinHint:'Share it only once you are in the car',
+  ontrip:'On trip',eta:n=>`${n} min to`,shareTrip:'Share trip',sos:'SOS',sosHint:c=>`SOS calls ${c} and alerts the operations team`,sosSent:'SOS sent. Help is on the way.',
+  invKsa:'Simplified tax invoice',invUae:'Tax invoice',excl:'Fare excl. VAT',vat:p=>`VAT ${p}%`,total:'Total',taxKsa:'VAT no.',taxUae:'TRN',paid:'Paid with',inv:'Invoice',rateBtn:'Rate this trip',
+  rate:'How was your ride?',tip:'Add a tip',done:'Submit rating',report:'Report an issue',reported:'Issue reported. Ticket #T-4471',del:'Delete my account',thanks:'Thanks! See you on the next ride.',
+  drive:'Drive with Bingo',driveSub:'Verify your identity, then upload your documents',upload:'Upload',uploaded:'Uploaded',submit:'Submit for review',review:'Under review',reviewSub:'We check every document with the regulator before you can drive.',approvedT:'You’re approved',
+  face:'Verify it’s you',faceSub:'Needed at the start of every shift',startShift:'Start shift',scan:'Hold still…',verified:'Face matched · 0.97',goOnline:'Go online',online:'You’re online',offline:'Offline',
+  waiting:'Waiting for rides',today:'Today',trips:'trips',newRide:'New ride!',toPick:'to pickup',trip:'trip',swipe:'Swipe to accept',decline:'Decline',pick:'Pickup',drop:'Drop',
+  enterPin:'Enter the rider’s PIN',verify:'Verify and start trip',heading:'Heading to',end:'Swipe to end trip',earn:'Today’s earnings',thisTrip:'This trip',pass:'Daily pass',keep:'You keep 100% of fares',back:'Back online',rated:'Rider rated you',seats:'seats'},
+ ar:{welcome:'مرحباً بك في بينغو',mobile:'أدخل رقم جوالك',send:'إرسال الرمز',codeT:'أدخل الرمز المكوّن من ٦ أرقام',sentTo:'أُرسل برسالة نصية إلى',expires:'ينتهي الرمز خلال 4:58',verifyBtn:'تحقق',agree:'أوافق على الشروط وسياسة الخصوصية',share:'مشاركة موقعي أثناء الرحلة',
+  hello:'مساء الخير',whereTo:'إلى أين؟',home:'المنزل',work:'العمل',near:n=>`${n} كباتن بالقرب منك`,choose:'اختر رحلتك',away:n=>`على بُعد ${n} د`,incl:p=>`شامل ضريبة ${p}%`,book:'احجز',
+  finding:'نبحث عن كابتن',findingSub:'لا تُعرض رحلتك إلا على كباتن موثّقين بمستندات سارية',coming:'الكابتن في الطريق إليك',arr:n=>`يصل خلال ${n} د`,pin:'رمز الرحلة',pinHint:'شاركه فقط بعد ركوب السيارة',
+  ontrip:'في الرحلة',eta:n=>`${n} د إلى`,shareTrip:'مشاركة الرحلة',sos:'طوارئ',sosHint:c=>`زر الطوارئ يتصل بـ ${c} وينبّه فريق التشغيل`,sosSent:'تم إرسال نداء الطوارئ. المساعدة في الطريق.',
+  invKsa:'فاتورة ضريبية مبسطة',invUae:'فاتورة ضريبية',excl:'الأجرة قبل الضريبة',vat:p=>`ضريبة القيمة المضافة ${p}%`,total:'الإجمالي',taxKsa:'الرقم الضريبي',taxUae:'رقم التسجيل الضريبي',paid:'الدفع عبر',inv:'رقم الفاتورة',rateBtn:'قيّم الرحلة',
+  rate:'كيف كانت رحلتك؟',tip:'أضف إكرامية',done:'إرسال التقييم',report:'الإبلاغ عن مشكلة',reported:'تم تسجيل البلاغ رقم T-4471',del:'حذف حسابي',thanks:'شكراً! نراك في الرحلة القادمة.',
+  drive:'قُد مع بينغو',driveSub:'تحقق من هويتك ثم ارفع مستنداتك',upload:'رفع',uploaded:'تم الرفع',submit:'إرسال للمراجعة',review:'قيد المراجعة',reviewSub:'نتحقق من كل مستند لدى الجهة المنظمة قبل أن تبدأ.',approvedT:'تمت الموافقة عليك',
+  face:'تحقق من هويتك',faceSub:'مطلوب في بداية كل وردية',startShift:'ابدأ الوردية',scan:'ثبّت وجهك…',verified:'تطابق الوجه · 0.97',goOnline:'ابدأ العمل',online:'أنت متصل',offline:'غير متصل',
+  waiting:'بانتظار الطلبات',today:'اليوم',trips:'رحلات',newRide:'رحلة جديدة!',toPick:'للالتقاط',trip:'الرحلة',swipe:'اسحب للقبول',decline:'رفض',pick:'الالتقاط',drop:'الوجهة',
+  enterPin:'أدخل رمز الراكب',verify:'تحقق وابدأ الرحلة',heading:'متجه إلى',end:'اسحب لإنهاء الرحلة',earn:'أرباح اليوم',thisTrip:'هذه الرحلة',pass:'الاشتراك اليومي',keep:'تحتفظ بكامل الأجرة',back:'متصل مجدداً',rated:'قيّمك الراكب',seats:'مقاعد'}
+};
+
+/* who has the move at each step, and what to do */
+const STEPS = [
+ {k:'rsign',  en:'Rider signs up',        app:'rider',   tab:'overview', hint:'Rider app: tap “Send code”, then “Verify”.'},
+ {k:'cdocs',  en:'Captain registers',     app:'captain', tab:'captains', hint:'Captain app: verify identity, upload each document, then submit.'},
+ {k:'approve',en:'Ops approves captain',  app:'console', tab:'captains', hint:'Console: read the regulator checks and press “Approve”.'},
+ {k:'face',   en:'Shift start face check',app:'captain', tab:'overview', hint:'Captain app: tap “Start shift”, wait for the face match, then “Go online”.'},
+ {k:'book',   en:'Rider books',           app:'rider',   tab:'overview', hint:'Rider app: pick a class (try Ladies in Riyadh), then “Book”.'},
+ {k:'match',  en:'Dispatch and accept',   app:'captain', tab:'rides',    hint:'Captain app: drag the knob to accept. The console shows who was filtered out and why.'},
+ {k:'pin',    en:'Pickup and ride PIN',   app:'captain', tab:'rides',    hint:'Captain app: type the PIN the rider shows (4 8 2 7), then verify.'},
+ {k:'trip',   en:'Live trip and SOS',     app:'captain', tab:'overview', hint:'Try SOS in the rider app and watch the console. Then swipe to end the trip in the captain app.'},
+ {k:'invoice',en:'Payment and e-invoice', app:'rider',   tab:'finance',  hint:'Rider app: check the e-invoice, then tap “Rate this trip”.'},
+ {k:'close',  en:'Rating and support',    app:'console', tab:'support',  hint:'Rate the captain and report an issue in the rider app, then resolve the ticket in the console.'},
+];
+const BRANDS=[['Bingo','#C7FF2E'],['Rawah','#2EE6C7'],['Noor','#FFC83D'],['Safar','#FF8A5B']];
+
+/* ================= state ================= */
+const st={market:'ksa',lang:'en',step:0,vehicle:{ksa:'comfort',uae:'standard'},pay:{ksa:'mada',uae:'card'},brand:'#C7FF2E',play:false,app:'rider',ctab:'overview',sub:{}, extra:[]};
+try{const sv=JSON.parse(localStorage.getItem('bingo-gulf')||'{}'); if(sv.market) st.market=sv.market; if(sv.lang) st.lang=sv.lang;}catch(e){}
+const save=()=>{try{localStorage.setItem('bingo-gulf',JSON.stringify({market:st.market,lang:st.lang}))}catch(e){}};
+const qs=new URLSearchParams(location.search);
+['market','lang'].forEach(k=>qs.get(k)&&(st[k]=qs.get(k)));
+if(qs.get('step')) st.step=+qs.get('step');
+if(qs.get('vehicle')) st.vehicle[st.market]=qs.get('vehicle');
+if(qs.get('brand')) st.brand='#'+qs.get('brand');
+const SHOT=qs.get('shot');
+st.ctab=qs.get('tab')||STEPS[st.step].tab;
+if(SHOT){ document.body.classList.add('shot'); st.app=SHOT; }
+
+/* ================= helpers ================= */
+const m=()=>MK[st.market], t=()=>T[st.lang], L=o=>o[st.lang]??o.en, K=()=>STEPS[st.step].k;
+const ksa=()=>st.market==='ksa';
+const veh=()=>m().vehicles.find(v=>v.id===st.vehicle[st.market])||m().vehicles[0];
+const cap=()=>(ksa()&&veh().id==='ladies')?m().cap.ladies:m().cap.def;
+function fare(v=veh()){const[b,k,mi,mn]=v.f;const net=Math.max(mn,b+k*m().km+mi*m().min);const total=Math.round(net*(1+m().vat/100));const vat=+(total-total/(1+m().vat/100)).toFixed(2);return{total,vat,excl:+(total-vat).toFixed(2)};}
+const money=(n,dec=0)=>`<span class="cur">${L(m().cur)}</span>${Number(n).toLocaleString('en-US',{minimumFractionDigits:dec,maximumFractionDigits:dec})}`;
+const baseTime=()=>{const d=new Date();d.setUTCHours(ksa()?16:15,40,0,0);return d;};
+const clock=(add=0)=>new Date(baseTime().getTime()+add*60000).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:m().tz});
+const isoTime=(add=0)=>new Date(baseTime().getTime()+add*60000).toISOString().replace(/\.\d+Z$/,'Z');
+function hijri(){try{return new Intl.DateTimeFormat(st.lang==='ar'?'ar-SA-u-ca-islamic-umalqura-nu-latn':'en-u-ca-islamic-umalqura',{day:'numeric',month:'long',year:'numeric'}).format(baseTime());}catch(e){return'';}}
+const greg=()=>baseTime().toLocaleDateString(st.lang==='ar'?'ar-SA-u-ca-gregory-nu-latn':'en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:m().tz});
+function tlvBase64(){const f=fare();const fields=[L(m().seller),m().taxId,isoTime(24),f.total.toFixed(2),f.vat.toFixed(2)];const enc=new TextEncoder();const bytes=[];fields.forEach((v,i)=>{const b=[...enc.encode(v)];bytes.push(i+1,b.length,...b);});let bin='';bytes.forEach(x=>bin+=String.fromCharCode(x));return btoa(bin);}
+const esc=x=>String(x).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const payObj=()=>m().pays.find(p=>p.id===st.pay[st.market]);
+const plate=c=>st.lang==='ar'?c.plate[0]:c.plate[1];
+const plateHTML=c=>`<span class="plate">${plate(c)}<small>${ksa()?'KSA':'DUBAI'}</small></span>`;
+/* sub-state filled in for screenshots, auto-play and when jumping to a step */
+function completeSub(){const k=K(), S=st.sub;
+ if(k==='rsign'){S.otp=true;} if(k==='cdocs'){S.id=true;S.up=m().docs.map((_,i)=>i);} if(k==='face'){S.face=2;}
+ if(k==='pin'){S.pin='4827';} if(k==='trip'){} if(k==='close'){S.stars=5;S.ticket=true;}}
+if(SHOT&&qs.get('done')) completeSub();
+if(qs.get('sos')) st.sub.sos=true;
+
+const I={
+ car:(c='#0F0F0F',z=24)=>`<svg width="${z}" height="${z}" viewBox="0 0 24 24" fill="${c}"><path d="M5 11l1.6-4.3A2 2 0 0 1 8.5 5.4h7a2 2 0 0 1 1.9 1.3L19 11h.5A1.5 1.5 0 0 1 21 12.5V17a1 1 0 0 1-1 1h-1v1.2a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1V18H8v1.2a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V18H4a1 1 0 0 1-1-1v-4.5A1.5 1.5 0 0 1 4.5 11zm2.1 0h9.8l-1.1-3.1a.8.8 0 0 0-.7-.5H8.9a.8.8 0 0 0-.7.5zM6.5 15.5a1.3 1.3 0 1 0 0-2.6 1.3 1.3 0 0 0 0 2.6zm11 0a1.3 1.3 0 1 0 0-2.6 1.3 1.3 0 0 0 0 2.6z"/></svg>`,
+ van:(c='#0F0F0F')=>`<svg width="24" height="24" viewBox="0 0 24 24" fill="${c}"><path d="M3 7a2 2 0 0 1 2-2h10.5a2 2 0 0 1 1.6.8L21 11v6a1 1 0 0 1-1 1h-1.2a2.5 2.5 0 0 1-4.6 0H9.8a2.5 2.5 0 0 1-4.6 0H4a1 1 0 0 1-1-1zm2 0v4h4V7zm6 0v4h4V7zm6 .9V11h2.4zM7.5 18.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm9 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/></svg>`,
+ star:`<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3 6.6 7.2.8-5.4 4.9 1.5 7.1L12 17.8 5.7 21.4l1.5-7.1L1.8 9.4 9 8.6z"/></svg>`,
+ arrow:`<svg class="flip" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`,
+ check:(z=20)=>`<svg width="${z}" height="${z}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`,
+ shield:`<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l8 3v6c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V5z"/></svg>`,
+ pin:`<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 1 7 7c0 5-7 13-7 13S5 14 5 9a7 7 0 0 1 7-7zm0 4.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z"/></svg>`,
+};
+function mapSVG(id,{carAt=null,h=150,dots=false}={}){
+ const from=L(m().from),to=L(m().to);
+ return `<div class="map"><svg viewBox="0 0 280 ${h}" aria-hidden="true">
+  <rect width="280" height="${h}" fill="#121212"/>
+  ${Array.from({length:15},(_,i)=>`<line x1="${i*20}" y1="0" x2="${i*20}" y2="${h}" stroke="#1B1B1B"/>`).join('')}
+  ${Array.from({length:Math.ceil(h/20)},(_,i)=>`<line x1="0" y1="${i*20}" x2="280" y2="${i*20}" stroke="#1B1B1B"/>`).join('')}
+  <rect x="58" y="20" width="56" height="34" rx="6" fill="#18201A"/><rect x="150" y="${h-60}" width="70" height="40" rx="6" fill="#18201A"/><rect x="214" y="12" width="50" height="22" rx="6" fill="#131B21"/>
+  <path d="M0 ${h-22} L280 ${h-40}" stroke="#2C2C2C" stroke-width="5"/><path d="M150 0 L60 ${h}" stroke="#262626" stroke-width="4"/><path d="M0 60 L280 48" stroke="#2C2C2C" stroke-width="4"/>
+  <path d="M40 ${h-28} L40 ${h-60} L118 ${h-60} L118 ${h-100} L218 ${h-100} L218 32" fill="none" stroke="var(--pb)" stroke-opacity=".22" stroke-width="10" stroke-linejoin="round"/>
+  <path id="${id}" d="M40 ${h-28} L40 ${h-60} L118 ${h-60} L118 ${h-100} L218 ${h-100} L218 32" fill="none" stroke="var(--pb)" stroke-width="3.5" stroke-linejoin="round"/>
+  <circle cx="40" cy="${h-28}" r="9" fill="var(--pb)" fill-opacity=".25"/><circle cx="40" cy="${h-28}" r="5" fill="#fff" stroke="#0F0F0F" stroke-width="2"/>
+  <path d="M218 32 c-6 -8 -9 -12 -9 -16 a9 9 0 0 1 18 0 c0 4 -3 8 -9 16z" fill="var(--pb)"/><circle cx="218" cy="16" r="3.5" fill="#0F0F0F"/>
+  ${dots?[[70,40],[190,70],[250,110],[30,90],[140,30]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="5" fill="var(--pb)"/><circle cx="${x}" cy="${y}" r="9" fill="none" stroke="var(--pb)" stroke-opacity=".3" stroke-width="2"/>`).join(''):''}
+  <text x="54" y="${h-22}" fill="#fff" font-size="11" font-weight="600" font-family="Inter,IBM Plex Sans Arabic,sans-serif">${esc(from)}</text>
+  <text x="208" y="20" text-anchor="end" fill="var(--pb)" font-size="11" font-weight="700" font-family="Inter,IBM Plex Sans Arabic,sans-serif">${esc(to)}</text>
+  ${carAt!==null?`<g class="carmk" data-path="${id}" data-at="${carAt}"><circle r="11" fill="var(--pb)"/><circle r="15" fill="none" stroke="var(--pb)" stroke-opacity=".35" stroke-width="3"/><g transform="translate(-8,-8)">${I.car('#0F0F0F',16)}</g></g>`:''}
+ </svg></div>`;
+}
+const sbar=()=>`<div class="sbar"><span>${clock(st.step*2)}</span><span class="isl"></span><span>5G ▮▮▮</span></div>`;
+const frame=(body,dark)=>`<div class="scr ${dark?'dark':''}" dir="${st.lang==='ar'?'rtl':'ltr'}" lang="${st.lang}">${sbar()}<div class="pbody">${body}</div></div>`;
+
+/* ================= rider app ================= */
+function riderScreen(){
+ const x=t(),M=m(),v=veh(),f=fare(),c=cap(),k=K(),S=st.sub;
+ if(k==='rsign'){
+  return frame(`<div style="width:46px;height:46px;border-radius:14px;background:var(--pb);display:grid;place-items:center;font:800 24px var(--display);margin-top:8px">b</div>
+   <div class="d" style="font-size:28px">${x.welcome}</div>
+   ${!S.otp?`<div class="pm" style="font-size:13px">${x.mobile}</div>
+     <div class="field" dir="ltr"><span style="color:#777">${M.dial}</span><span>${M.phone}</span></div>
+     <div class="tick"><i>✓</i><span>${x.agree}</span></div><div class="tick"><i>✓</i><span>${x.share}</span></div>
+     <button class="cta" data-do="otp" style="margin-top:auto"><b>${x.send}</b><span class="go">${I.arrow}</span></button>`
+   :`<div class="pm" style="font-size:13px">${x.codeT}</div><div class="pm" style="font-size:12px" dir="ltr">${x.sentTo} ${M.dial} ${M.phone}</div>
+     <div class="otp" dir="ltr">${'318204'.split('').map(d=>`<span class="f">${d}</span>`).join('')}</div>
+     <div class="pm" style="font-size:12px;text-align:center">${x.expires}</div>
+     <div class="note">${st.lang==='ar'?`المرسل: ${L({en:'BINGO',ar:'BINGO'})} · اسم مرسل مسجّل`:'Sender: BINGO · registered sender name'}</div>
+     <button class="cta" data-do="next" style="margin-top:auto"><b>${x.verifyBtn}</b><span class="go">${I.check()}</span></button>`}`);
+ }
+ if(['cdocs','approve','face'].includes(k)){
+  const n=k==='face'&&S.face===2?14:13;
+  return frame(`<div class="pm" style="font-size:13px">${x.hello}, ${L(M.rider).split(' ')[0]}</div>
+   <div class="d" style="font-size:30px">${x.whereTo}</div>
+   ${mapSVG('rm0',{h:190,dots:true})}
+   <div class="pcard" style="display:flex;align-items:center;gap:10px"><span style="width:10px;height:10px;border-radius:50%;background:#0F0F0F;flex:none"></span><b style="flex:1">${L(M.to)}</b><span class="pm" style="font-size:11px">${M.km} km</span></div>
+   <div style="display:flex;gap:8px"><span class="pchip">${I.pin} ${x.home}</span><span class="pchip">${I.pin} ${x.work}</span></div>
+   <span class="pchip ${n===14?'br':''}" style="margin-top:auto;align-self:flex-start">${x.near(n)}</span>`);
+ }
+ if(k==='book'){
+  return frame(`<div class="d" style="font-size:26px">${x.choose}</div>
+   <div class="pchip" style="justify-content:center">${L(M.from)} ${I.arrow} ${L(M.to)} · ${M.km} ${st.lang==='ar'?'كم':'km'}</div>
+   <div style="display:flex;flex-direction:column;gap:6px">${M.vehicles.map(o=>{const sel=o.id===v.id,ff=fare(o);
+    return `<button style="padding:9px 12px" class="pcard vrow ${sel?'sel':''}" data-veh="${o.id}" aria-pressed="${sel}"><div style="min-width:0"><b style="font-size:14.5px">${L(o)}</b> <span class="pm" style="font-size:11px">· ${o.seats} ${x.seats}</span><div class="pm" style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${x.away(o.eta)} · ${L(o.tag)}</div><div class="price num" style="margin-top:3px">${money(ff.total)}</div></div><span class="ico">${o.id==='family'?I.van():I.car()}</span></button>`}).join('')}</div>
+   <div style="display:flex;gap:6px;overflow:hidden;flex:none">${M.pays.map(p=>`<button class="pchip ${p.id===st.pay[st.market]?'br':''}" data-pay="${p.id}" style="flex:none;white-space:nowrap;padding:6px 10px">${L(p)}</button>`).join('')}</div>
+   <button class="cta" data-do="next" style="margin-top:auto"><span><b style="font-size:15px">${x.book} ${L(v)}</b><br><span style="font-size:11.5px">${L(M.cur)} ${f.total} · ${x.incl(M.vat)}</span></span><span class="go">${I.arrow}</span></button>`);
+ }
+ if(k==='match'){
+  return frame(`<div class="d" style="font-size:26px;margin-top:10px">${x.finding}</div><div class="pm" style="font-size:12.5px">${x.findingSub}</div>
+   <div class="pulse"><i></i><i></i><i></i><b>${I.car()}</b></div>
+   <div class="pcard"><div style="display:flex;justify-content:space-between"><b>${L(v)}</b><b class="num">${money(f.total)}</b></div><div class="pm" style="font-size:12px">${L(M.from)} → ${L(M.to)} · ${L(payObj())}</div></div>`);
+ }
+ if(k==='pin'){
+  return frame(`<div class="d" style="font-size:24px">${x.coming}</div>
+   ${mapSVG('rm4',{carAt:.06,h:130})}
+   <div class="pcard" style="display:flex;gap:10px;align-items:center"><span style="width:44px;height:44px;border-radius:50%;background:#0F0F0F;color:var(--pb);display:grid;place-items:center;font-weight:700;flex:none">${L(c)[0]}</span>
+    <div style="flex:1;min-width:0"><b>${L(c)}</b> <span style="font-size:12px">${I.star} ${c.r}</span><div class="pm" style="font-size:11.5px">${v.car} · ${x.arr(3)}</div></div>${plateHTML(c)}</div>
+   <div class="pcard" style="text-align:center"><div class="pm" style="font-size:12px">${x.pin}</div><div class="pinbox" style="justify-content:center;margin:6px 0" dir="ltr"><span>4</span><span>8</span><span>2</span><span>7</span></div><div class="pm" style="font-size:11.5px">${x.pinHint}</div></div>`);
+ }
+ if(k==='trip'){
+  return frame(`<div class="pchip br" style="align-self:flex-start">${x.ontrip}</div>
+   <div class="d" style="font-size:23px">${x.eta(12)} ${L(M.to)}</div>
+   ${mapSVG('rm5',{carAt:'anim',h:190})}
+   <div class="pcard" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="min-width:0"><b>${L(c)}</b><div class="pm" style="font-size:12px">${v.car}</div></div>${plateHTML(c)}</div>
+   ${S.sos?`<div class="note sos">${I.shield} ${x.sosSent}</div>`:`<div style="display:flex;gap:8px"><span class="pchip" style="flex:1;justify-content:center">${x.shareTrip}</span><button class="pchip sos" data-do="sos" style="flex:1;justify-content:center">${I.shield} ${x.sos} · ${M.sos}</button></div>`}
+   <div class="pm" style="font-size:11px;text-align:center">${x.sosHint(M.sos)}</div>`);
+ }
+ if(k==='invoice'){
+  const p=payObj();
+  return frame(`<div class="d" style="font-size:23px">${ksa()?x.invKsa:x.invUae}</div>
+   <div class="inv">
+    <div class="r"><b>${L(M.seller)}</b></div>
+    <div class="r"><span class="pm">${ksa()?x.taxKsa:x.taxUae}</span><span class="num" dir="ltr">${M.taxId}</span></div>
+    <div class="r"><span class="pm">${x.inv}</span><span class="num" dir="ltr">INV-${st.market.toUpperCase()}-20931</span></div>
+    <div class="r"><span class="pm">${greg()}</span><span>${ksa()?hijri():''}</span></div>
+    <hr style="border:0;border-top:1px dashed #DDD;margin:4px 0;width:100%">
+    <div class="r"><span>${L(v)} · ${M.km} km · ${M.min} min</span></div>
+    <div class="r"><span class="pm">${x.excl}</span><span class="num">${money(f.excl,2)}</span></div>
+    <div class="r"><span class="pm">${x.vat(M.vat)}</span><span class="num">${money(f.vat,2)}</span></div>
+    <div class="r" style="align-items:flex-end;margin-top:4px"><div><div class="pm">${x.total}</div><div class="tot num">${money(f.total,2)}</div><div class="pm" style="margin-top:4px">${x.paid}: ${L(p)} ${p.sub}</div></div>${ksa()?'<div class="qr" id="qr"></div>':''}</div>
+   </div>
+   <div class="note">${ksa()?(st.lang==='ar'?'رمز QR بصيغة هيئة الزكاة والضريبة والجمارك':'QR in ZATCA format: seller, VAT no., time, total, VAT'):(st.lang==='ar'?'فاتورة ضريبية تحمل رقم التسجيل الضريبي':'Tax invoice with the operator’s TRN')}</div>
+   <button class="cta" data-do="next" style="margin-top:auto"><b>${x.rateBtn}</b><span class="go">${I.arrow}</span></button>`);
+ }
+ /* close */
+ return frame(`<div class="d" style="font-size:25px;margin-top:4px">${x.rate}</div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:4px"><span style="width:60px;height:60px;border-radius:50%;background:#0F0F0F;color:var(--pb);display:grid;place-items:center;font:700 24px var(--display)">${L(c)[0]}</span><b>${L(c)}</b></div>
+  <div class="stars">${[1,2,3,4,5].map(i=>`<button data-star="${i}" class="${(S.stars||0)>=i?'on':''}" aria-label="${i} stars">★</button>`).join('')}</div>
+  <div class="pm" style="text-align:center;font-size:12px">${x.tip}</div>
+  <div style="display:flex;gap:8px;justify-content:center">${[5,10,15].map(n=>`<button class="pchip ${S.tip===n?'br':''}" data-tip="${n}">${L(M.cur)} ${n}</button>`).join('')}</div>
+  ${S.rated?`<div class="note">${x.thanks}</div>`:`<button class="cta" data-do="rate" ${S.stars?'':'disabled'}><b>${x.done}</b><span class="go">${I.check()}</span></button>`}
+  ${S.ticket?`<div class="note" style="background:#F0F0F0;color:#0F0F0F">${x.reported}</div>`:''}
+  <div style="display:flex;justify-content:space-between;font-size:12px;margin-top:auto"><button data-do="ticket" style="border:0;background:none;padding:0;text-decoration:underline">${x.report}</button><span class="pm" style="text-decoration:underline">${x.del}</span></div>`);
+}
+
+/* ================= captain app ================= */
+function captainScreen(){
+ const x=t(),M=m(),v=veh(),f=fare(),c=cap(),k=K(),S=st.sub;
+ if(k==='rsign'){
+  return frame(`<div style="margin-top:30px;width:60px;height:60px;border-radius:18px;background:var(--pb);display:grid;place-items:center;color:#0F0F0F">${I.car('#0F0F0F',34)}</div>
+   <div class="d" style="font-size:34px">${x.drive}</div><div class="pm" style="font-size:13px">${x.driveSub}</div>
+   ${mapSVG('cm0',{h:170,dots:true})}
+   <button class="cta" disabled style="margin-top:auto"><b>${M.idBtn[st.lang]}</b><span class="go">${I.arrow}</span></button>`,true);
+ }
+ if(k==='cdocs'){
+  const up=S.up||[], all=S.id&&up.length===M.docs.length;
+  return frame(`<div class="d" style="font-size:27px">${x.drive}</div><div class="pm" style="font-size:12.5px">${x.driveSub}</div>
+   ${S.id?`<div class="pcard" style="display:flex;justify-content:space-between;align-items:center;gap:6px"><span style="font-size:12.5px"><b>${L(M.idp)}</b> · ${L(c)}</span><span class="pchip br" style="font-size:11px">${I.check(14)}</span></div>`
+    :`<button class="cta" data-do="id"><b>${M.idBtn[st.lang]}</b><span class="go">${I.shield}</span></button>`}
+   <div class="pcard" style="padding:2px 14px;${S.id?'':'opacity:.35;pointer-events:none'}">${M.docs.map((d,i)=>`<div class="doc"><span>${L(d)}</span><button data-up="${i}" class="${up.includes(i)?'ok':''}">${up.includes(i)?'✓ '+x.uploaded:x.upload}</button></div>`).join('')}</div>
+   <button class="cta" data-do="next" ${all?'':'disabled'} style="margin-top:auto"><b>${x.submit}</b><span class="go">${I.arrow}</span></button>`,true);
+ }
+ if(k==='approve'){
+  return frame(`<div class="d" style="font-size:28px;margin-top:8px">${x.review}</div><div class="pm" style="font-size:13px">${x.reviewSub}</div>
+   <div class="pulse"><i></i><i></i><i></i><b>${I.shield}</b></div>
+   <div class="pcard" style="padding:2px 14px">${M.docs.slice(0,4).map(d=>`<div class="doc"><span>${L(d)}</span><span class="pm" style="font-size:11px">${x.review}</span></div>`).join('')}</div>`,true);
+ }
+ if(k==='face'){
+  const f2=S.face||0;
+  return frame(`<span class="pchip br" style="align-self:flex-start">${I.check(14)} ${x.approvedT}</span>
+   <div class="d" style="font-size:27px">${x.face}</div><div class="pm" style="font-size:12.5px">${x.faceSub}</div>
+   <div class="face ${f2===1?'scan':''} ${f2===2?'ok':''}">${f2===2?`<div style="position:absolute;inset:0;display:grid;place-items:center;color:var(--pb)">${I.check(56)}</div>`:''}</div>
+   <div style="text-align:center;font-weight:600">${f2===0?'':f2===1?x.scan:x.verified}</div>
+   ${f2<2?`<button class="cta" data-do="face" ${f2===1?'disabled':''} style="margin-top:auto"><b>${x.startShift}</b><span class="go">${I.arrow}</span></button>`
+     :`<button class="pcard" data-do="next" style="display:flex;justify-content:space-between;align-items:center;margin-top:auto;border:0;color:#fff;font:inherit;width:100%"><b>${x.goOnline}</b><span class="tog"><i></i></span></button>`}`,true);
+ }
+ if(k==='book'){
+  return frame(`<div style="display:flex;justify-content:space-between;align-items:center"><span class="pchip br">● ${x.online}</span><span class="tog on"><i></i></span></div>
+   <div class="pm" style="font-size:12px">${x.waiting}</div>
+   ${mapSVG('cm2',{h:220,dots:true})}
+   <div class="pcard"><div class="pm" style="font-size:12px">${x.today}</div><div class="price num" style="color:var(--pb)">${money(ksa()?214:388)}</div><div class="pm" style="font-size:12px">6 ${x.trips} · ${x.keep}</div></div>`,true);
+ }
+ if(k==='match'){
+  return frame(`<div style="display:flex;justify-content:space-between;align-items:flex-start"><div><span class="pchip br" style="font-size:11px">${L(v).toUpperCase()}</span><div class="d" style="font-size:29px;margin-top:6px">${x.newRide}</div></div>
+    <div class="ring"><svg width="62" height="62"><circle cx="31" cy="31" r="27" stroke="#2A2A2A" stroke-width="5" fill="none"/><circle id="cd" cx="31" cy="31" r="27" stroke="var(--pb)" stroke-width="5" fill="none" stroke-dasharray="170" stroke-dashoffset="0" stroke-linecap="round"/></svg><b id="cdn">15</b></div></div>
+   <div style="display:flex;align-items:center;gap:8px"><span class="d num" style="font-size:38px;color:var(--pb)">${money(f.total)}</span><span class="pchip">${L(payObj())}</span></div>
+   <div style="display:flex;gap:8px"><div class="pcard" style="flex:1"><b class="d" style="font-size:17px">1.4 km</b><div class="pm" style="font-size:11px">3 min ${x.toPick}</div></div><div class="pcard" style="flex:1"><b class="d" style="font-size:17px">${M.km} km</b><div class="pm" style="font-size:11px">${M.min} min ${x.trip}</div></div></div>
+   ${mapSVG('cm3',{h:100})}
+   <div class="pcard" style="background:#fff;color:#0F0F0F;font-size:12.5px"><div class="pm" style="font-size:10px">${x.pick.toUpperCase()}</div><b>${L(M.from)}</b><div class="pm" style="font-size:10px;margin-top:4px">${x.drop.toUpperCase()}</div><b>${L(M.toLong)}</b><div style="margin-top:5px">${L(M.rider)} · ${I.star} 4.8</div></div>
+   <div class="swipe" data-swipe="next"><span class="knob">${I.check()}</span>${x.swipe} »</div>`,true);
+ }
+ if(k==='pin'){
+  const p=S.pin||'';
+  return frame(`<div class="d" style="font-size:25px">${x.enterPin}</div><div class="pm" style="font-size:12px">${L(M.rider)} · ${L(M.from)}</div>
+   <div class="pinbox" dir="ltr" style="justify-content:center;margin:10px 0">${[0,1,2,3].map(i=>`<span class="${p[i]?'f':''}">${p[i]||''}</span>`).join('')}</div>
+   ${p.length===4&&p!=='4827'?`<div class="note sos" style="text-align:center">PIN does not match. Try again.</div>`:''}
+   <div class="keypad" dir="ltr">${[1,2,3,4,5,6,7,8,9,'C',0,'⌫'].map(n=>`<button data-key="${n}">${n}</button>`).join('')}</div>
+   <button class="cta" data-do="next" ${p==='4827'?'':'disabled'} style="margin-top:auto"><b>${x.verify}</b><span class="go">${I.arrow}</span></button>`,true);
+ }
+ if(k==='trip'){
+  return frame(`<div class="pm" style="font-size:12px">${x.heading}</div><div class="d" style="font-size:22px">${L(M.toLong)}</div>
+   ${mapSVG('cm5',{carAt:'anim',h:230})}
+   <div style="display:flex;gap:8px"><div class="pcard" style="flex:1"><b class="d" style="font-size:17px">12 min</b><div class="pm" style="font-size:11px">${x.drop}</div></div><div class="pcard" style="flex:1"><b class="d num" style="font-size:17px">${money(f.total)}</b><div class="pm" style="font-size:11px">${L(payObj())}</div></div></div>
+   <div class="swipe" data-swipe="next" style="margin-top:auto"><span class="knob">${I.arrow}</span>${x.end} »</div>`,true);
+ }
+ if(k==='invoice'){
+  const today=(ksa()?214:388)+f.excl;
+  return frame(`<div class="pm" style="font-size:12px">${x.earn}</div><div class="d num" style="font-size:38px;color:var(--pb)">${money(today,2)}</div>
+   <div class="pcard"><div style="display:flex;justify-content:space-between"><span>${x.thisTrip}</span><b class="num">${money(f.excl,2)}</b></div><div class="pm" style="font-size:11px;margin-top:2px">${L(M.from)} → ${L(M.to)} · ${M.km} km</div></div>
+   <div class="pcard"><div style="display:flex;justify-content:space-between"><span>${x.pass}</span><b class="num">−${money(M.passFee)}</b></div><div class="pm" style="font-size:11px;margin-top:2px">${x.keep}</div></div>
+   <div class="pcard" style="display:flex;align-items:flex-end;gap:6px;height:110px">${[40,62,30,75,55,90,68].map((h,i)=>`<i style="flex:1;height:${h}%;border-radius:6px;background:${i===6?'var(--pb)':'#2E2E2E'}"></i>`).join('')}</div>`,true);
+ }
+ return frame(`<div style="display:flex;justify-content:space-between;align-items:center"><span class="pchip br">● ${x.back}</span><span class="tog on"><i></i></span></div>
+  ${S.rated?`<div class="pcard" style="text-align:center"><div class="pm" style="font-size:12px">${x.rated}</div><div style="font-size:26px;color:var(--pb)">${'★'.repeat(S.stars||5)}</div>${S.tip?`<b>+ ${L(M.cur)} ${S.tip}</b>`:''}</div>`:''}
+  ${mapSVG('cm7',{h:230,dots:true})}`,true);
+}
+
+/* ================= ops console ================= */
+const CTABS=[['overview','Overview'],['captains','Captains'],['rides','Rides'],['compliance','Compliance'],['finance','Finance'],['support','Support']];
+function consoleScreen(){
+ const M=m(),k=K(),S=st.sub,n=st.step,c=cap(),f=fare(),v=veh();
+ const badge={captains:k==='approve'?'1':'',support:(S.sos&&!S.sosAck)||(S.ticket&&!S.resolved)?'!':''};
+ let main='';
+ const live=n>=6&&n<=7?1:0;
+ if(st.ctab==='overview'){
+  main=`<div class="chead"><h3>Overview</h3><span class="cpill br">● Live · ${M.city}</span></div>
+   <div class="ctiles">
+    <div class="ctile hi"><div class="cl" style="color:#9a9a9a">Revenue today</div><div class="v g num">${M.cur.en} ${((ksa()?38420:25610)+(n>=8?f.total:0)).toLocaleString('en-US')}</div><div class="s">↑ 18% vs yesterday</div></div>
+    <div class="ctile"><div class="cl">Rides today</div><div class="v num">${(ksa()?1284:342)+(n>=4?1:0)}</div><div class="s">${live?'1 live now':'0 waiting'}</div></div>
+    <div class="ctile"><div class="cl">Captains online</div><div class="v num">${(ksa()?212:57)+(n>=3&&!(k==='face'&&(S.face||0)<2)?1:0)}</div><div class="s">all face-checked</div></div>
+    <div class="ctile"><div class="cl">Riders</div><div class="v num">${((ksa()?48211:9104)+(n>=1||S.otp?1:0)).toLocaleString('en-US')}</div><div class="s">${n===0?'sign-ups today 61':'+1 just now'}</div></div>
+   </div>
+   ${S.sos&&!S.sosAck?`<div class="alert"><b>SOS · ride BG-20931</b><span style="font-size:12px">${L(M.rider)} pressed SOS near ${L(M.from)}. ${M.sos} has been called and the live location is shared.</span><div style="display:flex;gap:8px"><button class="cbtn" data-do="sosack">Acknowledge</button><button class="cbtn ghost">Call rider</button></div></div>`:''}
+   <div class="ccard" style="padding:8px"><div style="display:flex;justify-content:space-between;padding:2px 4px 8px"><b>Live fleet</b><span class="cl">${(ksa()?212:57)} visible</span></div>${mapSVG('cmap',{carAt:live?'anim':null,h:170,dots:true})}</div>
+   <div class="ccard"><b>Activity</b><div class="feedmini" style="margin-top:8px">${events().slice(0,4).map(e=>`<div><b>${e.ch}</b><span>${e.title}</span></div>`).join('')}</div></div>`;
+ }
+ if(st.ctab==='captains'){
+  const pend=k==='approve';
+  main=`<div class="chead"><h3>Captains</h3><span class="cpill">${pend?'1 waiting for review':'Queue clear'}</span></div>
+   ${pend?`<div class="ccard"><div style="display:flex;gap:10px;align-items:center"><span style="width:42px;height:42px;border-radius:50%;background:#0F0F0F;color:var(--pb);display:grid;place-items:center;font-weight:700">${c.en[0]}</span><div style="flex:1"><b>${c.en}</b><div style="font-size:11.5px;color:#777">${c.id} · ${v.car} · ${c.plate[1]} · applied ${clock(1)}</div></div><span class="cpill warn">Pending</span></div>
+     <table class="ctable" style="margin-top:8px"><thead><tr><th>Check</th><th>Result</th><th></th></tr></thead><tbody>${M.checks.map(r=>`<tr><td><b>${r[0]}</b></td><td>${r[1]}</td><td><span class="cpill ok">✓</span></td></tr>`).join('')}</tbody></table>
+     <div style="display:flex;gap:8px;margin-top:10px"><button class="cbtn br" data-do="next">Approve</button><button class="cbtn ghost">Reject</button><span style="font-size:11px;color:#777;align-self:center">Checked against ${ksa()?'Naql and Nafath':'RTA and UAE PASS'} at ${clock(2)}</span></div></div>`:''}
+   <div class="ccard"><table class="ctable"><thead><tr><th>Captain</th><th>Vehicle</th><th>Status</th></tr></thead><tbody>
+    ${n>2?`<tr><td><b>${c.en}</b></td><td>${c.plate[1]}</td><td><span class="cpill ok">Active · approved ${clock(4)}</span></td></tr>`:''}
+    ${(ksa()?[['Khalid Al-Dosari','RHT 1180',['bad','Suspended · driver card expired']],['Saad Al-Mutairi','KMA 5512',['warn','Card expires in 9 days']],['Majed Al-Zahrani','LJD 9021',['ok','Active']],['Turki Al-Shammari','BSR 3307',['ok','Active']]]
+      :[['Bilal Ahmed','Dubai K 22018',['bad','Suspended · limo permit expired']],['Joseph Mathew','Dubai T 71230',['warn','Permit expires in 11 days']],['Ramesh Kumar','Dubai P 50331',['ok','Active']],['Omar Haddad','Dubai M 11872',['ok','Active']]])
+      .map(r=>`<tr><td><b>${r[0]}</b></td><td>${r[1]}</td><td><span class="cpill ${r[2][0]}">${r[2][1]}</span></td></tr>`).join('')}
+   </tbody></table></div>`;
+ }
+ if(st.ctab==='rides'){
+  const stages=['Requested','Offered to captain','Accepted','PIN verified, trip started','Trip ended','Paid and invoiced'];
+  const reached= n<4?-1: n===4?0: n===5?1: n===6?2: n===7?3: n===8?5:5;
+  main=`<div class="chead"><h3>Rides</h3><span class="cpill">${n<4?'No ride selected':'BG-20931'}</span></div>
+   ${n<4?`<div class="ccard" style="color:#777">The ride appears here once the rider books.</div>`:`
+   <div class="ccard"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>BG-20931 · ${v.en}</b><b class="num">${M.cur.en} ${f.total}</b></div><div style="font-size:11.5px;color:#777">${M.rider.en} · ${M.from.en} → ${M.toLong.en} · ${payObj().en}</div>
+    <div class="tl" style="margin-top:8px">${stages.map((s2,i)=>`<div class="${i<=reached?'on':''}"><i></i>${s2}${i===3&&n>=6?` · reported to ${M.reg}`:''}</div>`).join('')}</div></div>
+   ${n>=5?`<div class="ccard"><b>Matching log</b>${matchTable(true)}</div>`:''}`}`;
+ }
+ if(st.ctab==='compliance'){
+  const ints=ksa()?[['TGA · Naql','Connected · last trip event '+clock(st.step*2)],['Nafath','Connected'],['ZATCA FATOORA','Production CSID valid'],['Face match','Vendor in-Kingdom · 99.1% pass today'],['Hosting','Saudi cloud region']]
+   :[['RTA platform','Connected · last trip event '+clock(st.step*2)],['UAE PASS','Connected'],['Tax invoices','TRN set · e-invoicing ready'],['Face match','99.3% pass today'],['Hosting','UAE cloud region']];
+  main=`<div class="chead"><h3>Compliance</h3><span class="cpill warn">${ksa()?7:3} holds</span></div>
+   <div class="ccard"><b>Integrations</b>${ints.map(r=>`<div class="crow"><span>${r[0]}</span><span class="cpill ok">${r[1]}</span></div>`).join('')}</div>
+   <div class="ccard"><b>Expiring in 30 days</b>${(ksa()?[['Saad Al-Mutairi','TGA driver card','9 days'],['Fahad Al-Qahtani','Operating card','14 days'],['Nawaf Al-Harbi','Insurance','21 days']]:[['Joseph Mathew','RTA permit','11 days'],['Ali Rahman','Limo permit','19 days'],['Vijay Nair','Insurance','26 days']]).map(r=>`<div class="crow"><span><b>${r[0]}</b> · ${r[1]}</span><span class="cpill warn">${r[2]}</span></div>`).join('')}
+   <div style="font-size:11.5px;color:#777;margin-top:6px">Captains are suspended automatically on the expiry date. Reminders go out at 30, 14 and 7 days.</div></div>`;
+ }
+ if(st.ctab==='finance'){
+  const rows=[['INV-'+st.market.toUpperCase()+'-20928','42.00'],['INV-'+st.market.toUpperCase()+'-20929','28.00'],['INV-'+st.market.toUpperCase()+'-20930','61.00']];
+  if(n>=8) rows.unshift(['INV-'+st.market.toUpperCase()+'-20931',f.total.toFixed(2)]);
+  main=`<div class="chead"><h3>Finance</h3><span class="cpill">${M.cur.en} · VAT ${M.vat}%</span></div>
+   <div class="ctiles" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="ctile"><div class="cl">${ksa()?'ZATCA reported':'Tax invoices'}</div><div class="v num">${(ksa()?1191:318)+(n>=8?1:0)}</div><div class="s">${ksa()?'all within 24h':'issued today'}</div></div><div class="ctile"><div class="cl">VAT collected</div><div class="v num">${(ksa()?5011:1220)}</div><div class="s">${M.cur.en} today</div></div><div class="ctile"><div class="cl">Daily passes</div><div class="v num">${ksa()?198:51}</div><div class="s">× ${M.cur.en} ${M.passFee}</div></div></div>
+   <div class="ccard"><b>Invoices</b><table class="ctable"><thead><tr><th>Invoice</th><th>Total</th><th>Status</th></tr></thead><tbody>${rows.map((r,i)=>`<tr><td>${r[0]}</td><td class="num">${M.cur.en} ${r[1]}</td><td><span class="cpill ${n>=8&&i===0?'br':'ok'}">${ksa()?'Reported to ZATCA':'Issued with TRN'}</span></td></tr>`).join('')}</tbody></table></div>`;
+ }
+ if(st.ctab==='support'){
+  main=`<div class="chead"><h3>Support</h3><span class="cpill">Response target 24 h</span></div>
+   ${S.sos?`<div class="${S.sosAck?'ccard':'alert'}"><b>SOS · BG-20931 ${S.sosAck?'· acknowledged':''}</b><span style="font-size:12px">${M.rider.en} · ${M.sos} called · live location shared with ops.</span>${S.sosAck?'':`<div><button class="cbtn" data-do="sosack">Acknowledge</button></div>`}</div>`:''}
+   ${S.ticket?`<div class="ccard"><div style="display:flex;justify-content:space-between;gap:8px"><b>T-4471 · Route longer than shown</b><span class="cpill ${S.resolved?'ok':'warn'}">${S.resolved?'Resolved':'Open · due in 23 h'}</span></div><div style="font-size:12px;color:#555;margin-top:4px">${M.rider.en} · ride BG-20931 · ${M.km} km planned, 10.6 km driven.</div>${S.resolved?`<div style="font-size:12px;margin-top:6px">Partial refund of ${M.cur.en} 4.00 issued; credit note linked to the invoice.</div>`:`<div style="display:flex;gap:8px;margin-top:8px"><button class="cbtn br" data-do="resolve">Refund ${M.cur.en} 4 and resolve</button><button class="cbtn ghost">Reply</button></div>`}</div>`:`<div class="ccard" style="color:#777">${k==='close'?'Report an issue from the rider app to see it here.':'No open tickets.'}</div>`}
+   <div class="ccard"><b>Data requests</b><div class="crow"><span>Account deletion · rider #48032</span><span class="cpill">Trip and tax records kept as required</span></div><div class="crow"><span>Data export · rider #47110</span><span class="cpill ok">Sent</span></div></div>`;
+ }
+ return `<div class="console"><div class="cbar"><i></i><i></i><i></i><span class="url">${M.host}/${st.ctab}</span></div>
+  <div class="cwrap"><nav class="cnav"><div class="brand"><i></i><span>Bingo</span></div>${CTABS.map(([id,lab])=>`<button data-ctab="${id}" aria-pressed="${st.ctab===id}"><span>${lab}</span>${badge[id]?`<em class="${badge[id]==='!'?'r':''}">${badge[id]}</em>`:''}</button>`).join('')}</nav>
+  <div class="cmain">${main}</div></div></div>`;
+}
+function matchTable(compact){
+ const lad=ksa()&&veh().id==='ladies';
+ const rows=ksa()?[
+  ['Faisal Al-Harbi','Comfort','3 min',lad?['bad','Not eligible for Ladies']:['ok','Offered first, accepted']],
+  ['Reem Al-Otaibi','Comfort','5 min',lad?['ok','Offered first, accepted']:['ok','Eligible, ranked 2nd']],
+  ['Khalid Al-Dosari','Comfort','2 min',['bad','Driver card expired']],
+  ['Saad Al-Mutairi','Comfort','2 min',['warn','No face check today']],
+  ['Majed Al-Zahrani','Economy','1 min',['bad','Wrong car class']],
+  ['Turki Al-Shammari','Comfort','4 min',['warn','On another trip']]]
+ :[['Imran Shaikh','Standard','3 min',['ok','Offered first, accepted']],['Joseph Mathew','Standard','4 min',['ok','Eligible, ranked 2nd']],['Bilal Ahmed','Standard','2 min',['bad','Limo permit expired']],['Ramesh Kumar','Executive','2 min',['bad','Wrong class']],['Omar Haddad','Standard','1 min',['warn','No face check today']],['Nikhil Rao','Standard','5 min',['bad','Fleet partner suspended']]];
+ if(compact) return `<table class="ctable" style="margin-top:6px"><thead><tr><th>Captain</th><th>ETA</th><th>Result</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r[0]}<div style="font-size:10.5px;color:#777">${r[1]}</div></td><td>${r[2]}</td><td><span class="cpill ${r[3][0]}">${r[3][1]}</span></td></tr>`).join('')}</tbody></table>`;
+ return `<div class="scrollx"><table class="ct" style="margin-top:12px"><thead><tr><th>Captain</th><th>Class</th><th>ETA</th><th>Result</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td><span class="pill ${r[3][0]}">${r[3][1]}</span></td></tr>`).join('')}</tbody></table></div>`;
+}
+
+/* ================= reasoning per step ================= */
+function why(){
+ const k=K(),K_=ksa(),M=m(),f=fare(),v=veh();
+ const W={
+  rsign:{h:'Riders sign up with a phone number and a one-time code',
+   p:`The rider enters a ${K_?'Saudi (+966)':'UAE (+971)'} mobile number and gets a 6-digit code by SMS. Bulk SMS in ${K_?'Saudi Arabia':'the UAE'} has to come from a sender name registered through a licensed SMS provider, so the client's brand appears as the sender. The code expires after 5 minutes, attempts are rate-limited, and only a hash is stored. Before the account exists, the rider accepts the terms and a privacy notice written for the ${K_?'PDPL':'UAE PDPL'}, because the app will process location data.${K_?s(8):''}`,
+   rules:[[K_?'CST':'TDRA','SMS sender names registered through a licensed provider.'],[K_?'PDPL':'UAE PDPL','Clear notice and consent before collecting location data.'],['Security','Code expires in 5 minutes, rate-limited, stored as a hash.']],
+   bingo:['Phone sign-in in Arabic and English','Versioned consent screens for terms and privacy','Rate limits and hashed codes'],
+   client:['SMS provider account and registered sender name','Terms and privacy policy approved by counsel'],
+   pitch:'“From the first SMS, your riders see your brand, not ours.”'},
+  cdocs: K_?{h:'Captains register in the app, starting with Nafath',
+   p:`Only Saudi citizens may drive on ride-hailing apps,${s(1)} so registration starts with Nafath, which confirms the person and their nationality. The captain then uploads the driving licence, the TGA driver card, the vehicle registration (istimara), the vehicle operating card, insurance and a profile photo. Driver cards and operating cards are issued through the Naql portal and tied to the operator's licence.${s(6,7)} Every file is stored in the Kingdom with its expiry date.`,
+   rules:[['TGA','Saudi nationals only (100% localisation of ride-hailing).'],['Naql','Driver card per driver; operating card per vehicle.'],['Nafath','National login used to prove identity and nationality.']],
+   bingo:['Nafath sign-in hook','Document upload with expiry dates read from each card','Storage in a Saudi cloud region'],
+   client:['TGA licence so cards can be issued','Nafath integration approval'],
+   pitch:'“Registration takes a captain ten minutes, and your team doesn’t chase paperwork.”'}
+   :{h:'Captains register through UAE PASS and a licensed fleet',
+   p:`Dubai does not allow private cars on ride-hailing apps. Vehicles run under limousine permits and drivers hold an RTA public driving permit.${s(11,12)} So the captain verifies with UAE PASS, uploads the licence, RTA permit, Mulkiya, limousine permit and insurance, and is linked to the licensed limousine company they drive for.`,
+   rules:[['RTA','Limousine permits only; private cars not allowed.'],['Driver','RTA public driving permit, medical and record checks.'],['UAE PASS','National digital identity.']],
+   bingo:['UAE PASS sign-in hook','Fleet-partner field on every captain and car','Permit expiry tracking'],
+   client:['RTA approvals and limousine fleet or partner','Driver permits and training'],
+   pitch:'“Every captain is tied to a licensed fleet before the first ride.”'},
+  approve:{h:'Ops approves only when the regulator records match',
+   p: K_?`The console checks each uploaded card against Naql and the identity against Nafath, and shows the result next to the documents. A person still presses Approve, so there is always a named reviewer. TGA treats a non-compliant app as a major violation: it can block the app, and fines run up to SAR 20,000.${s(4)} After approval, Bingo watches every expiry date and suspends a captain automatically on the day a card lapses.`
+     :`The console checks the permit and vehicle records and the UAE PASS identity, then a named reviewer presses Approve. Bingo tracks every permit expiry and suspends a captain automatically on the day a permit lapses, so a lapsed limousine permit can never take a ride.`,
+   rules:K_?[['TGA','Blocking of non-compliant apps; fines up to SAR 20,000; impoundment.'],['Audit','Who approved whom, when, and on which evidence.']]:[['RTA','Fines and permit risk when an unlicensed driver or car carries passengers.'],['Audit','Reviewer, time and evidence stored.']],
+   bingo:['Review queue with automatic checks','Auto-suspend on expiry, reminders at 30, 14 and 7 days','Approval audit trail'],
+   client:['Ops reviewer with console access','Policy for appeals and re-instatement'],
+   pitch:'“Your reviewer clicks once. The regulator check already ran.”'},
+  face:{h:'A face check before every shift',
+   p: K_?`In February 2026 TGA introduced facial-recognition verification for ride-hailing drivers, to stop account sharing.${s(3)} Bingo asks for a live selfie at the start of each shift and at random during it, matches it against the onboarding photo, and only then unlocks “Go online”. A face template is sensitive data under the PDPL, so it needs explicit consent, stays in the Kingdom and has a fixed retention period.${s(8)}`
+     :`We found no published RTA rule that requires face checks, but the permit belongs to one person and account sharing is the fastest way to lose a regulator's trust. Bingo runs the same check as in Saudi Arabia, on by default.`,
+   rules:K_?[['TGA','Facial-recognition verification of ride-hailing drivers (Feb 2026).'],['PDPL','Biometrics: explicit consent, purpose limit, in-Kingdom storage.']]:[['Operator policy','The permit holder must be the person driving.'],['UAE PDPL','Consent and purpose limits for biometric data.']],
+   bingo:['Liveness and face match at shift start, plus random re-checks','Failed checks block going online and are logged'],
+   client:['Face-match vendor licensed in-country','Privacy notice approved by counsel'],
+   pitch:K_?'“TGA checks faces now. Bingo does it every shift.”':'“Account sharing stops at the first selfie.”'},
+  book:{h:K_?'Arabic first, VAT-inclusive prices, local payments':'Bilingual booking, AED prices including VAT',
+   p:K_?`The app is designed right to left, with English one tap away. Every price includes 15% VAT and the server calculates the fare, so a modified app cannot change it. mada, Apple Pay and STC Pay run through a SAMA-licensed gateway, with cash as a fallback. The Ladies class matches women riders with women captains. This ride shows ${money(f.total)} before booking.`
+     :`Prices are in AED with 5% VAT included, and payments run through a UAE-licensed gateway (cards, Apple Pay, cash). Limousine operators set fares within their permit; Bingo keeps a fare table for Standard, Executive and Family 7 that the console can change. This ride shows ${money(f.total)} before booking.`,
+   rules:K_?[['ZATCA','VAT at 15%, included in consumer prices.'],['SAMA','Card and wallet payments through a licensed gateway.'],['Ladies class','Women have driven legally since 2018; women-only matching is a policy setting.']]:[['FTA','VAT at 5%.'],['CBUAE','Online payments through a licensed gateway.'],['RTA','Limousine classes within the operator’s permit.']],
+   bingo:['Full RTL Arabic UI with native-speaker review','Server-side fare engine with VAT split','Gateway adapters: '+(K_?'Moyasar, HyperPay, Tap':'Tap, Checkout.com, Network International')],
+   client:['Gateway merchant account','Fare table and class names','Arabic store listing'],
+   pitch:K_?'“Arabic isn’t a translation layer. The whole app is built right to left.”':'“One fare table per class, changed from the console in seconds.”'},
+  match:{h:'Matching filters by compliance first, then by distance',
+   p:`The server only considers captains who are online, passed today's face check, have valid documents and drive the right class${K_&&v.id==='ladies'?', and for a Ladies ride, are women':''}. Then it ranks them by time to pickup and offers the ride to one captain at a time for 15 seconds. The console's Rides tab shows exactly who was filtered out and why.`,
+   rules:[['Dispatch','Eligibility filters run before ranking.'],['Audit','Every offer, accept and decline is stored for regulator requests.']],
+   bingo:['Eligibility rules set from the console','15-second offers with automatic re-offer','Offer audit log'],
+   client:['Matching radius and offer time','Captain incentive rules'],
+   pitch:'“Your dispatcher is also your compliance officer.”',table:true},
+  pin:{h:'The PIN proves the right rider is in the right car',
+   p:`The rider sees a 4-digit PIN that the captain never sees. The captain types what the rider reads out and the server checks it against a stored hash. Only then does the trip start, and the start event goes to ${K_?'TGA':'RTA'} with the driver card, vehicle card, plate and pickup point.${K_?s(6,13):s(11)}`,
+   rules:K_?[['TGA','Platforms integrate with TGA systems for trip tracking and driver ID checks.']]:[['RTA','Trip data shared with RTA’s electronic platform.']],
+   bingo:['PIN check on the server','Saudi and Dubai plate formats','Regulator adapter with a retry queue'],
+   client:['Regulator API credentials and test access'],
+   pitch:`“Every trip start reaches ${K_?'TGA':'RTA'} automatically.”`},
+  trip:{h:'Live tracking, SOS, and data that stays in the country',
+   p:K_?`The captain app sends its location every few seconds and the rider can share the trip with family. SOS calls 911 and puts a red alert in the console, as you can try now. Saudi personal data should stay in the Kingdom: the PDPL limits transfers abroad, so Bingo runs in the client's own Saudi cloud account.${s(8,10)}`
+     :`Location updates every few seconds, trip sharing, and SOS that calls 999 and raises a console alert. The UAE PDPL governs personal data, and hosting in a UAE region is the safe default for hotel, corporate and government-linked clients.`,
+   rules:K_?[['PDPL','Transfers of personal data outside KSA restricted.'],['911','Unified emergency number.']]:[['UAE PDPL','Consent, purpose limit and security.'],['999','Police number.']],
+   bingo:['Trip sharing and SOS with console alert','Deployment to '+(K_?'Saudi':'UAE')+' cloud regions','Location retention timer'],
+   client:['In-country cloud account','Data protection officer'],
+   pitch:`“Your riders’ data never leaves ${K_?'the Kingdom':'the UAE'}.”`},
+  invoice:{h:K_?'Every ride produces a ZATCA e-invoice':'Every ride produces a VAT tax invoice',
+   p:K_?`Each consumer ride needs a simplified tax invoice with a QR code carrying the seller name, VAT number, time, total and VAT. In Phase 2 the invoice is signed and reported to ZATCA, within 24 hours for simplified invoices.${s(9)} Consultancies list penalties from SAR 5,000 for not issuing e-invoices. The receipt also shows the Hijri date, and the console's Finance tab shows it as reported.`
+     :`The operator issues a tax invoice with its TRN and 5% VAT for every ride. UAE e-invoicing through accredited providers phases in over 2026–27, so Bingo already stores each invoice as structured data ready for the client's provider.`,
+   rules:K_?[['ZATCA','Simplified invoice with TLV QR; Phase 2 signing and reporting.'],['Captains','How VAT applies to captain earnings depends on the client’s structure; set with their tax adviser.']]:[['FTA','Tax invoice with TRN and VAT amount.'],['E-invoicing','Phased roll-out; structured data ready.']],
+   bingo:['Invoice engine with the real TLV QR (shown in the feed)','FATOORA onboarding support','Daily pass or commission settlement'],
+   client:['VAT registration and FATOORA onboarding','Accountant sign-off on the layout'],
+   pitch:K_?'“Scan the QR on this receipt. It’s real ZATCA encoding.”':'“Every ride already produces the invoice your accountant needs.”'},
+  close:{h:'Ratings, complaints, refunds and the right to delete',
+   p:`The rider rates and tips, and can report a problem that opens a ticket with a 24-hour target in the console. A refund issued there links a credit note to the original invoice. Both app stores require in-app account deletion, and the ${K_?'PDPL':'UAE PDPL'} gives people the right to access and delete their data, while trip and tax records are kept for as long as the law requires.`,
+   rules:[['Stores','In-app account deletion (Apple and Google).'],[K_?'PDPL':'UAE PDPL','Access, correction and deletion requests.'],[K_?'TGA':'RTA','Complaint handling and records available on request.']],
+   bingo:['Tickets with response targets','Refunds with linked credit notes','Deletion that keeps legally required records'],
+   client:['Arabic and English support team','Retention periods confirmed by counsel'],
+   pitch:'“Complaints, refunds and deletions run from one console, with an audit trail.”'},
+ };
+ return W[k];
+}
+
+/* ================= event feed ================= */
+function events(){
+ const K_=ksa(),M=m(),v=veh(),f=fare(),c=cap(),S=st.sub;
+ const E=[
+  [['ops','AUTH','Rider signed up',{phone:M.dial+' 5• ••• ••30',sms_sender:'BINGO (registered)',otp_ttl_s:300,consent:'terms v3, privacy v2'}]],
+  K_?[['reg','NAFATH','Identity confirmed',{national_id:'10••••••37',name_match:true,nationality:'SA'}],['data','DOCS','6 documents uploaded',{captain_id:c.id,storage:'Saudi cloud region, encrypted',expiry_dates_read:true}]]
+    :[['reg','UAE PASS','Identity confirmed',{emirates_id:'784-••••-•••••••-3',name_match:true}],['data','DOCS','6 documents uploaded',{captain_id:c.id,fleet:'Al Noor Limousine LLC'}]],
+  K_?[['reg','NAQL','Driver card valid',{driver_card:'DC-58821930',status:'valid',expires:'2027-03-02'}],['reg','NAQL','Operating card valid',{operating_card:'OC-4471902',plate:c.plate[1],model_year:2024}],['ops','OPS','Captain approved',{captain_id:c.id,reviewer:'ops.huda',checks_passed:7}]]
+    :[['reg','RTA','Permits valid',{driver_permit:'PDP-772190',vehicle_permit:'LV-30918'}],['ops','OPS','Captain approved',{captain_id:c.id,reviewer:'ops.sam',checks_passed:7}]],
+  [['data','FACE','Face matched, liveness passed',{captain_id:c.id,score:0.97,liveness:'pass',retention_days:90}],['ops','OPS','Captain online',{online_captains:K_?213:58}]],
+  [['pay','PAY','Payment authorised',{method:st.pay[st.market],amount:f.total.toFixed(2),currency:M.cur.en}],['ops','OPS','Ride requested',{ride_id:'BG-20931',class:v.id,fare_total:f.total,vat:f.vat,lang:st.lang}]],
+  [['ops','MATCH','6 candidates, 2 eligible',{ride_id:'BG-20931',offered_to:c.en,offer_seconds:15}],['ops','MATCH','Accepted',{captain:c.en,eta_min:3}]],
+  [['ops','OPS','PIN verified',{ride_id:'BG-20931',check:'hash match'}],['reg',K_?'TGA':'RTA','Trip start reported',{trip_id:'BG-20931',[K_?'driver_card':'driver_permit']:K_?'DC-58821930':'PDP-772190',[K_?'operating_card':'vehicle_permit']:K_?'OC-4471902':'LV-30918',plate:c.plate[1],started_at:isoTime(12)}]],
+  [['data','DATA','Location stored in-country',{pings_per_minute:12,region:K_?'Saudi cloud region':'UAE cloud region'}],...(S.sos?[['alert','SOS','SOS raised by rider',{ride_id:'BG-20931',called:M.sos,location_shared:true}]]:[])],
+  [['pay','PAY','Payment captured',{amount:f.total.toFixed(2),currency:M.cur.en}],
+   ...(K_?[['tax','ZATCA','Simplified invoice issued',{invoice:'INV-KSA-20931',vat_number:M.taxId,total:f.total.toFixed(2),vat:f.vat.toFixed(2),qr_tlv_base64:tlvBase64(),report_within:'24 hours'}]]
+     :[['tax','FTA','Tax invoice issued',{invoice:'INV-UAE-20931',trn:M.taxId,total:f.total.toFixed(2),vat:f.vat.toFixed(2)}]]),
+   ['reg',K_?'TGA':'RTA','Trip end reported',{trip_id:'BG-20931',distance_km:M.km,duration_min:M.min,fare:f.total}]],
+  [...(S.rated?[['ops','OPS','Rated '+(S.stars||5)+' stars',{tip:S.tip||0}]]:[]),...(S.ticket?[['ops','SUPPORT','Ticket T-4471 opened',{ride_id:'BG-20931',due_in_hours:24}]]:[]),...(S.resolved?[['pay','REFUND','Partial refund and credit note',{amount:'4.00',credit_note:'CN-'+st.market.toUpperCase()+'-311'}]]:[])],
+ ];
+ const out=[];for(let i=0;i<=st.step;i++)E[i].forEach((e,j)=>out.push({cls:e[0],ch:e[1],title:e[2],body:e[3],at:clock(i*2+(j>1?1:0)),now:i===st.step}));
+ return out.reverse();
+}
+
+/* ================= views ================= */
+function viewSim(){
+ const w=why(),S=STEPS[st.step];
+ const col=(id,label,inner)=>`<div class="appcol ${id==='console'?'consolecol':''} ${st.app===id?'on':''} ${S.app===id&&!SHOT?'actor':''}"><span class="label">${label}</span>${inner}</div>`;
+ return `<section class="view wrap">
+  <div class="strip">
+   <ol class="steps" aria-label="Journey steps">${STEPS.map((x,i)=>`<li><button class="stepb ${i<st.step?'done':''}" data-step="${i}" ${i===st.step?'aria-current="step"':''}><b>${i+1}</b>${x.en}</button></li>`).join('')}</ol>
+   <div class="controls"><button class="btn" data-act="prev" ${st.step===0?'disabled':''}>Back</button><button class="btn primary" data-act="next" ${st.step===STEPS.length-1?'disabled':''}>Skip step</button><button class="btn" data-act="play" aria-pressed="${st.play}">${st.play?'Pause':'Auto-play'}</button><button class="btn" data-act="restart">Restart</button></div>
+   <div class="swatches"><span class="label">Client brand</span>${BRANDS.map(b=>`<button style="--c:${b[1]}" data-brand="${b[1]}" aria-pressed="${st.brand===b[1]}" title="${b[0]}" aria-label="${b[0]} brand colour"></button>`).join('')}</div>
+  </div>
+  <div class="move"><span class="who">Step ${st.step+1} of ${STEPS.length}</span><p>${S.hint}</p></div>
+  <div class="seg apptabs" role="group" aria-label="Which app">${[['rider','Rider app'],['captain','Captain app'],['console','Console']].map(([id,l])=>`<button data-app="${id}" aria-pressed="${st.app===id}">${l}${S.app===id?' ●':''}</button>`).join('')}</div>
+  <div class="stage" style="--pb:${st.brand}">
+   ${col('rider','Rider app',`<div class="phone">${riderScreen()}</div>`)}
+   ${col('captain','Captain app',`<div class="phone">${captainScreen()}</div>`)}
+   ${col('console','Operations console',consoleScreen())}
+  </div>
+  <div class="lower">
+   <article class="card why"><span class="label">Why this step · ${ksa()?'Saudi Arabia':'United Arab Emirates'}</span>
+    <h2>${w.h}</h2><p>${w.p}</p>${w.table?matchTable(false):''}
+    <div class="rules">${w.rules.map(r=>`<div class="rule"><span class="tag">${r[0]}</span><span>${r[1]}</span></div>`).join('')}</div>
+    <div class="split"><div><span class="label">Bingo builds</span><ul>${w.bingo.map(x=>`<li>${x}</li>`).join('')}</ul></div><div><span class="label">Client and local partner handle</span><ul>${w.client.map(x=>`<li>${x}</li>`).join('')}</ul></div></div>
+    <div class="pitch"><b>Say this in the demo</b>${w.pitch}</div>
+   </article>
+   <article class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h3>Regulator and system feed</h3><span class="pill lime">● Live</span></div>
+    <div class="feed">${events().map(e=>`<details class="ev ${e.now?'now':''}" ${e.now?'open':''}><summary><span class="ch ${e.cls}">${e.ch}</span><span>${e.title}</span><time>${e.at}</time></summary><pre>${esc(JSON.stringify(e.body,null,2))}</pre></details>`).join('')}</div>
+    <p class="src" style="margin:10px 0 0">Payloads are illustrative. ${ksa()?'TGA, Nafath and ZATCA':'RTA, UAE PASS and FTA'} specifications come with the client’s licence. The ZATCA QR string is real TLV encoding of the sample invoice.</p>
+   </article>
+  </div>
+ </section>`;
+}
+
+function viewRules(){
+ const Kr=[
+  ['Operator licence','TGA licence for app-based passenger transport through Naql; commercial registration first. Consultants quote 4–10 weeks after submission, 2–4 months end to end.'+s(6,7),'Client with local adviser','Cannot launch; app blocked'],
+  ['Drivers','Saudi nationals only. Driver card per driver, through Naql.'+s(1,6),'Bingo checks; client issues','Fines up to SAR 20,000, impoundment'+s(4)],
+  ['Vehicles','Operating card per vehicle; age and spec rules.'+s(6),'Bingo checks; client issues','Vehicle impounded'],
+  ['Driver identity','Facial-recognition verification (Feb 2026).'+s(3),'Bingo builds','Violation; suspension'],
+  ['Trip data','Integration with TGA systems for trip tracking and driver ID checks.'+s(6,13),'Bingo adapter; client credentials','Licence at risk'],
+  ['Personal data','PDPL enforced by SDAIA and NCA; transfers abroad restricted.'+s(8,10),'Bingo deploys in-Kingdom','Fines; enterprise deals lost'],
+  ['E-invoicing','ZATCA Phase 2: simplified invoices with QR, reported within 24 hours.'+s(9),'Bingo builds; client onboards','From SAR 5,000 (consultancy summaries)'],
+  ['Payments','SAMA-licensed gateway; mada, Apple Pay, STC Pay.','Bingo integrates','Settlement blocked'],
+  ['SMS','Registered sender name through a licensed provider.','Client account; Bingo integrates','Messages blocked'],
+  ['Language','Arabic UI, RTL, Arabic invoices and support.','Bingo builds','Low adoption'],
+ ];
+ const Ur=[
+  ['Operator licence','RTA e-hailing approval plus DET licence; feasibility study and RTA platform integration (Admin. Resolution 516 of 2022).'+s(11,12),'Client with local adviser','Cannot launch'],
+  ['Vehicles','Limousine permits only; private cars not allowed. New limo operators reportedly need at least 3 vehicles.'+s(11),'Client fleet or partner','Vehicle seized; fines'],
+  ['Drivers','RTA public driving permit, medical and record checks.'+s(12),'Bingo checks; client issues','Fines; permit risk'],
+  ['Trip data','Share trip data with RTA’s electronic platform.'+s(11),'Bingo adapter','Approval at risk'],
+  ['Abu Dhabi','Separate regulator (ITC); a second approval.'+s(13),'Client','Cannot operate there'],
+  ['Personal data','UAE PDPL (Federal Decree-Law 45 of 2021).','Bingo deploys in UAE region','Fines'],
+  ['Tax','5% VAT; tax invoice with TRN; e-invoicing phases in 2026–27.','Bingo builds','FTA penalties'],
+  ['Payments','CBUAE-licensed gateway.','Bingo integrates','Settlement blocked'],
+ ];
+ const tbl=rows=>`<div class="scrollx"><table class="ct"><thead><tr><th>Area</th><th>Rule</th><th>Who handles it</th><th>If missed</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${r[0]}</b></td><td>${r[1]}</td><td>${r[2]}</td><td><span class="pill ${/fine|block|Cannot|seized|impound|SAR/i.test(r[3])?'bad':'warn'}" style="white-space:normal">${r[3]}</span></td></tr>`).join('')}</tbody></table></div>`;
+ return `<section class="view wrap"><h1>What the law asks, and who does it</h1>
+  <p class="lede">Bingo builds every software control below. The licence always belongs to the client. That split is the pitch: we make the app pass inspection; the client and their adviser hold the licence.</p>
+  <div class="cols">
+   <article class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2>Saudi Arabia</h2><span class="pill">TGA · ZATCA · SDAIA</span></div>
+    <p class="lede" style="font-size:13.5px">About 45 licensed platforms and SAR 2.3 billion in app revenue in 2024. TGA suspends apps that break rules and still grants new licences (inDrive 2025, Ailoo 2026).${s(2,5,14,15)}</p><div style="margin-top:12px">${tbl(Kr)}</div></article>
+   <article class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2>UAE (Dubai)</h2><span class="pill">RTA · FTA · CBUAE</span></div>
+    <p class="lede" style="font-size:13.5px">Dubai ride-hailing runs through licensed limousines and taxis. The opening is limousine and chauffeur companies that want their own app.${s(11,12)}</p><div style="margin-top:12px">${tbl(Ur)}</div></article>
+  </div>
+  <div class="cols">
+   <article class="card"><h3>Saudi launch path for a client</h3><ol class="timeline">${[
+    ['Company, commercial registration and VAT','Saudi entity, or contract through a local partner entity.'],
+    ['TGA licence through Naql','4–10 weeks after submission per consultants. Check category pauses first.'],
+    ['Bingo build runs in parallel','Arabic brand, fare table and test servers in a Saudi region.'],
+    ['Driver and operating cards','Issued per driver and vehicle; loaded into Bingo.'],
+    ['TGA, Nafath and ZATCA integrations','Credentials come with the licence; test, then production.'],
+    ['Store launch and soft launch','One district with 30–50 captains, then the city.']].map((r,i)=>`<li><b>${i+1}</b><div><strong>${r[0]}</strong><p>${r[1]}</p></div></li>`).join('')}</ol></article>
+   <article class="card"><h3>Sources</h3><p class="lede" style="font-size:13px">Mostly news and consultancy guides, not official regulator texts. Use them to open the conversation, not to sign a contract.</p>
+    <ol class="srclist">${SRC.map(x=>`<li><a href="${x[1]}" target="_blank" rel="noopener">${x[0]}</a></li>`).join('')}</ol></article>
+  </div></section>`;
+}
+
+/* ===== pricing data, shared by Business case and Pricing ===== */
+const TIERS=[
+ {id:'pilot',name:'Gulf pilot',usd:6000,time:'3 weeks',for:'Proof before the big contract',items:['Client’s brand, Arabic and English','One city on a test server in-region','All three apps on test devices','Credited in full if the build starts within 60 days']},
+ {id:'uae',name:'UAE launch',usd:28000,time:'8–10 weeks',for:'Dubai limousine and chauffeur companies',items:['Production launch of all three apps','Fleet-partner and permit tracking','UAE gateway: cards, Apple Pay, cash','Tax invoices with TRN','RTA platform adapter','App Store and Play Store launch']},
+ {id:'ksa',name:'KSA compliance',usd:45000,time:'10–14 weeks',for:'Licensed Saudi fleet and taxi operators',hero:true,items:['Everything in UAE launch','Nafath and the Saudi-only driver gate','Face check every shift','Naql document wallet and TGA trip reporting','ZATCA Phase 2 e-invoices with QR','Ladies class, mada and STC Pay','Saudi cloud region hosting']},
+ {id:'ent',name:'Enterprise',usd:60000,from:true,time:'14+ weeks',for:'Multi-city, pilgrim transport, corporate fleets',items:['Everything in KSA compliance','Several cities and regulators','Corporate accounts and scheduled rides','Extra languages for pilgrims','Single sign-on and an uptime SLA']},
+];
+const CUSTOM=[
+ ['brand','Arabic brand system and native UX copy review',3000],
+ ['corp','Corporate and hotel accounts with monthly invoicing',5000],
+ ['sched','Scheduled and airport rides with flight tracking',4000],
+ ['promo','Promo codes, referrals and loyalty',3000],
+ ['fleet','Fleet-owner portal for partner companies',4000],
+ ['lang','Extra rider language (Urdu, Indonesian, Turkish …), each',1500],
+ ['city','Extra city or regulator adapter (e.g. Abu Dhabi ITC)',6000],
+ ['erp','Accounting / ERP export (Odoo, Zoho, SAP B1)',3000],
+ ['telem','Telematics or dashcam integration',4000],
+];
+const TURNKEY={
+ ksa:{base:45000,bands:[
+   ['Essential','KSA compliance package with Arabic brand system',['brand']],
+   ['Standard','Most fleet operators: adds corporate accounts, scheduled and airport rides, promotions',['brand','corp','sched','promo']],
+   ['Full','Pilgrim or multi-city operators: adds fleet portal, 3 languages, a second city, ERP and telematics',['brand','corp','sched','promo','fleet','lang','lang','lang','city','erp','telem']]],
+  run:[['App stores','Apple $99 a year, Google $25 once',124],['Saudi cloud region','Production and backups, ~$450 a month',5400],['SMS','Registered sender name, sign-in codes',1500],['Maps','Above the free tier',2400],['Face match','~95,000 checks a year for 300 captains',4800],['Payment gateway','mada about 1%, cards 2–3% per payment','pct']],
+  care:2000},
+ uae:{base:28000,bands:[
+   ['Essential','UAE launch package with Arabic brand system',['brand']],
+   ['Standard','Limousine companies: adds hotel and corporate accounts, scheduled and airport rides',['brand','corp','sched']],
+   ['Full','Multi-emirate operators: adds promotions, fleet portal, Abu Dhabi regulator and ERP',['brand','corp','sched','promo','fleet','city','erp']]],
+  run:[['App stores','Apple $99 a year, Google $25 once',124],['UAE cloud region','Production and backups, ~$350 a month',4200],['SMS','Registered sender name, sign-in codes',1000],['Maps','Above the free tier',1800],['Face match','~25,000 checks a year for 80 captains',1300],['Payment gateway','Cards 2–3% per payment','pct']],
+  care:1500},
+};
+const bandTotal=(mk,b)=>TURNKEY[mk].base+b[2].reduce((a,id)=>a+CUSTOM.find(c=>c[0]===id)[2],0);
+const usd=n=>'$'+Math.round(n).toLocaleString('en-US');
+const loc=(n,mk)=>MK[mk].cur.en+' '+(Math.round(n*MK[mk].usd/100)*100).toLocaleString('en-US');
+
+const BC={ksa:{captains:300,rides:12,fare:30,share:20,take:12,agg:22,run:12000,mkt:40000,tier:60000},uae:{captains:80,rides:10,fare:75,share:30,take:15,agg:25,run:10000,mkt:30000,tier:40000}};
+const HALO={deliveryMonths:4,teamCost:5500,partner:15,care:2000};
+function viewMoney(){
+ const b=BC[st.market],cur=m().cur.en,mk=st.market;
+ const sl=(id,lab,min,max,stp,val,suf='')=>`<div class="fld"><label for="${id}">${lab}<output id="${id}-o">${val}${suf}</output></label><input type="range" id="${id}" min="${min}" max="${max}" step="${stp}" value="${val}" data-suf="${suf}"></div>`;
+ const opts=TURNKEY[mk].bands.map(bd=>[bd[0]+' turnkey',bandTotal(mk,bd)]);
+ return `<section class="view wrap"><h1>Does the client make money?</h1>
+  <p class="lede">These sliders model a ${ksa()?'Riyadh fleet operator':'Dubai limousine company'} moving part of its rides from aggregators to its own app. Defaults are examples, not client data.</p>
+  <div class="calc">
+   <article class="card"><h3>Client’s fleet</h3>
+    ${sl('bc-captains','Captains',20,2000,10,b.captains)}${sl('bc-rides','Rides per captain per day',4,25,1,b.rides)}${sl('bc-fare',`Average fare (${cur})`,10,200,1,b.fare)}
+    ${sl('bc-agg','Commission aggregators take today',10,30,1,b.agg,'%')}${sl('bc-share','Rides moved to own app in year 1',5,80,5,b.share,'%')}${sl('bc-take','Own app take rate',0,25,1,b.take,'%')}
+    ${sl('bc-run',`Running costs per month (${cur})`,2000,60000,1000,b.run)}${sl('bc-mkt',`Rider marketing per month (${cur})`,0,200000,5000,b.mkt)}
+    <div class="fld"><label for="bc-tier">Turnkey project</label><select id="bc-tier">${opts.map(o=>`<option value="${o[1]}" ${o[1]===b.tier?'selected':''}>${o[0]} · ${usd(o[1])}</option>`).join('')}</select></div></article>
+   <article class="card"><h3>Result per month</h3><div id="bc-out"></div><p class="lede" style="font-size:13px">The real risk is rider acquisition, not software, so the model counts marketing and starts with a small share of rides.</p></article>
+   <article class="card"><h3>HALO’s side of the deal</h3><p class="lede" style="font-size:13px">Founder view: what one turnkey deal leaves after the local partner and delivery.</p>
+    ${sl('h-months','Delivery time (months)',1,8,.5,HALO.deliveryMonths)}${sl('h-team','Team cost per month (USD)',2000,20000,500,HALO.teamCost)}${sl('h-partner','Local partner share',0,30,1,HALO.partner,'%')}${sl('h-care','Care plan per month (USD)',500,5000,100,TURNKEY[mk].care)}
+    <div id="h-out" style="margin-top:10px"></div></article>
+  </div></section>`;
+}
+function calc(){
+ const g=id=>+document.getElementById(id).value, cur=m().cur.en, fx=m().usd;
+ document.querySelectorAll('input[type=range]').forEach(r=>{const o=document.getElementById(r.id+'-o');if(o)o.textContent=Number(r.value).toLocaleString('en-US')+(r.dataset.suf||'');});
+ const gmv=g('bc-captains')*g('bc-rides')*g('bc-fare')*30, own=gmv*g('bc-share')/100, rev=own*g('bc-take')/100, net=rev-g('bc-run')-g('bc-mkt');
+ const price=+document.getElementById('bc-tier').value, build=price*fx, pay=net>0?build/net:Infinity, saved=own*(g('bc-agg')-g('bc-take'))/100;
+ const f=n=>`${cur} ${Math.round(n).toLocaleString('en-US')}`;
+ document.getElementById('bc-out').innerHTML=`<div class="out"><span>Fleet gross bookings</span><b>${f(gmv)}</b></div><div class="out"><span>Bookings on own app</span><b>${f(own)}</b></div><div class="out"><span>Platform revenue</span><b>${f(rev)}</b></div><div class="out"><span>Less running costs and marketing</span><b>${f(g('bc-run')+g('bc-mkt'))}</b></div><div class="out"><span>Net to the client</span><b style="color:${net>0?'var(--ok)':'var(--bad)'}">${f(net)}</b></div><div class="out"><span>Extra kept by captains vs aggregators</span><b>${f(saved)}</b></div><div class="out big"><span>Payback on the project (${f(build)})</span><b>${isFinite(pay)?pay.toFixed(1)+' months':'not yet'}</b></div>`;
+ const partner=price*g('h-partner')/100, delivery=g('h-months')*g('h-team'), margin=price-partner-delivery, careYr=g('h-care')*12*(1-g('h-partner')/200);
+ document.getElementById('h-out').innerHTML=`<div class="out"><span>Project price</span><b>${usd(price)}</b></div><div class="out"><span>Local partner</span><b>−${usd(partner)}</b></div><div class="out"><span>Delivery cost</span><b>−${usd(delivery)}</b></div><div class="out"><span>Build margin</span><b style="color:${margin>0?'var(--ok)':'var(--bad)'}">${usd(margin)} · ${Math.round(margin/price*100)}%</b></div><div class="out big"><span>Care plan, year 1</span><b>${usd(careYr)}</b></div>`;
+}
+
+function turnkeyCard(mk){
+ const T=TURNKEY[mk], M=MK[mk];
+ const runTotal=T.run.reduce((a,r)=>a+(typeof r[2]==='number'?r[2]:0),0);
+ return `<article class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2>${mk==='ksa'?'Saudi Arabia':'UAE'}</h2><span class="pill">${M.cur.en} at ${M.usd}</span></div>
+  <div class="scrollx"><table class="ct" style="margin-top:10px"><thead><tr><th>Turnkey project</th><th>What it adds</th><th style="text-align:end">One-time</th></tr></thead><tbody>
+   ${T.bands.map(b=>`<tr><td><b>${b[0]}</b></td><td>${b[1]}</td><td class="n"><b>${usd(bandTotal(mk,b))}</b><br><span class="src">${loc(bandTotal(mk,b),mk)}</span></td></tr>`).join('')}
+  </tbody></table></div>
+  <h3 style="margin-top:16px">Year-one running costs, paid to providers</h3>
+  <div class="scrollx"><table class="ct"><tbody>${T.run.map(r=>`<tr><td><b>${r[0]}</b></td><td>${r[1]}</td><td class="n">${typeof r[2]==='number'?usd(r[2]):'per payment'}</td></tr>`).join('')}
+   <tr class="tot"><td>Total</td><td>Excluding gateway fees</td><td class="n">${usd(runTotal)}</td></tr></tbody></table></div>
+  <div class="out big"><span>Standard project + running costs + 12 months of care</span><b>${usd(bandTotal(mk,T.bands[1])+runTotal+T.care*12)}</b></div>
+  <p class="src" style="margin:4px 0 0">Care plan ${usd(T.care)} a month. Not included: licence, company setup, legal, fleet, marketing.</p></article>`;
+}
+function viewPricing(){
+ const fx=m().usd,cur=m().cur.en;
+ return `<section class="view wrap"><h1>Packages and turnkey budgets</h1>
+  <p class="lede">Proposed prices. They sit well under what Gulf agencies quote for a custom MVP ($30k–$120k in Dubai) and far above clone scripts, because the compliance work is real.${s(16,17)} Payment: 30% to start, 40% on the tested build, 30% at store go-live.</p>
+  <div class="tiers">${TIERS.map(x=>`<article class="tier ${x.hero?'hero':''}"><span class="label" style="color:inherit;opacity:.7">${x.for}</span><h3>${x.name}</h3><div class="p num">${x.from?'from ':''}${usd(x.usd)}</div><div class="tm num">${cur} ${(Math.round(x.usd*fx/100)*100).toLocaleString('en-US')} · ${x.time}</div><ul>${x.items.map(i=>`<li>${i}</li>`).join('')}</ul></article>`).join('')}</div>
+  <h2 style="margin-top:32px">Turnkey budgets by market</h2>
+  <p class="lede">A turnkey project is the package plus the customisations a real operator asks for, delivered and launched. These are the numbers to put in front of a buyer.</p>
+  <div class="cols">${turnkeyCard('ksa')}${turnkeyCard('uae')}</div>
+  <div class="cols">
+   <article class="card"><h3>Customisation price list</h3><div class="scrollx"><table class="ct"><tbody>${CUSTOM.map(c=>`<tr><td>${c[1]}</td><td class="n">${usd(c[2])}</td></tr>`).join('')}</tbody></table></div></article>
+   <article class="card"><h3>Other GCC markets</h3><p class="lede" style="font-size:13.5px">Qatar, Kuwait, Bahrain and Oman each have their own transport regulator and payment rules. Start from the UAE Standard project (${usd(bandTotal('uae',TURNKEY.uae.bands[1]))}) and add a regulator adapter (${usd(6000)}) once the client shares the regulator’s requirements.</p>
+    <h3 style="margin-top:14px">Gulf care plan</h3><p class="lede" style="font-size:13.5px">$1,500 a month in the UAE, $2,000 in Saudi Arabia. Covers hosting support, OS updates, store re-submissions and changes when the regulator or tax authority changes its rules.</p></article>
+  </div></section>`;
+}
+
+function viewMarket(){
+ const segs=[
+  ['KSA fleet and taxi operators','$60k turnkey','Licensed companies whose cars run on Uber, Careem, Jeeny or Bolt. They pay commission on every ride and own none of the riders. With 45 licensed platforms and steady TGA enforcement, compliance already worries them.'+s(2),'Highest'],
+  ['Makkah and Madinah pilgrim transport','$80k turnkey','Umrah runs all year and Hajj brings a seasonal spike. Operators need Arabic, Urdu, Indonesian, Turkish and English, group bookings and hotel pickups.','High'],
+  ['Women-first ride brand (KSA)','$60k turnkey','Women captains for women riders as a full brand. An easy story for investors and press.','Medium'],
+  ['Dubai and Abu Dhabi limousine companies','$40k turnkey','Every car is already a licensed limousine. They want their own app with Executive and Family classes and hotel accounts.'+s(11),'High'],
+  ['Hotels, malls and giga-project staff transport','$40k–$80k','Scheduled shuttles and on-demand cars for staff and guests. B2B, invoiced monthly, few riders to acquire.','Medium'],
+  ['Airport transfer and chauffeur operators','$35k–$40k','Pre-booked rides with flight tracking and fixed prices, in both countries.','Medium'],
+ ];
+ return `<section class="view wrap"><h1>Who to sell to, and how</h1>
+  <p class="lede">Don’t sell “an Uber clone”. Sell a compliant, Arabic-first platform to companies that already hold a licence or a fleet, so software is the only missing piece.</p>
+  <div class="seglist">${segs.map(x=>`<article class="card"><div class="row"><h3>${x[0]}</h3><span class="pill ${x[3]==='Highest'?'lime':''}">${x[3]} priority</span></div><div style="font:800 24px/1 var(--display)">${x[1]}</div><p class="lede" style="font-size:13.5px;margin:0">${x[2]}</p></article>`).join('')}</div>
+  <div class="cols">
+   <article class="card"><h3>Local partner model</h3><p class="lede" style="font-size:13.5px">Saudi buyers prefer to contract and be invoiced locally, and many procurement teams want a local entity with a commercial registration and VAT number.</p>
+    <div class="qa"><div><b>Who</b>A Saudi IT integrator, a transport consultancy or a business-setup firm that already serves fleet owners. In Dubai, a limousine-industry consultant or fleet-software reseller.</div>
+    <div><b>What they do</b>Introductions, Arabic contracts and invoicing, on-site support, and referrals to licensed advisers for TGA or RTA paperwork.</div>
+    <div><b>What they earn</b>15% of the project fee and 7.5% of the care plan in year 1, or they resell at 75% of list.</div>
+    <div><b>What you keep</b>The code, the delivery team and the direct support relationship. Write that into the agreement.</div></div></article>
+   <article class="card"><h3>First 90 days</h3><ol class="timeline">${[
+    ['Weeks 1–2: Arabic demo build','Bingo in Arabic, RTL, SAR prices and mada in test mode. Use this simulator in every first call.'],
+    ['Weeks 2–4: sign two partners','One in Riyadh, one in Dubai. List 60 target fleet, limousine and pilgrim-transport companies.'],
+    ['Weeks 3–8: 20 demo calls','LinkedIn and WhatsApp outreach in Arabic and English. Let the partner lead in Saudi Arabia.'],
+    ['Weeks 6–10: first paid pilot','Gulf pilot at $6,000, credited to the project.'],
+    ['Weeks 8–12: convert and publish','Turn the pilot into a turnkey project, then write the case study.']].map((r,i)=>`<li><b>${i+1}</b><div><strong>${r[0]}</strong><p>${r[1]}</p></div></li>`).join('')}</ol></article>
+  </div>
+  <div class="cols">
+   <article class="card"><h3>Objections you will hear</h3><div class="qa">
+    <div><b>“Careem and Uber already exist.”</b>You’re adding a direct channel for your own riders at a lower take rate, and you keep the customer data.</div>
+    <div><b>“Is it TGA compliant?”</b>The software controls are built. The licence is yours, and we connect to TGA once you have it.</div>
+    <div><b>“An Indian vendor? What about support?”</b>Riyadh is 2.5 hours behind India and Dubai 1.5. A local partner is on the ground and the care plan sets response times.</div>
+    <div><b>“Our data must stay in the country.”</b>It runs in your own cloud account in a Saudi or UAE region.</div></div></article>
+   <article class="card"><h3>Risks to plan for</h3><div class="qa">
+    <div><b>Licence delays</b>TGA has paused new licences in some categories. Sell to licence holders first.${s(7)}</div>
+    <div><b>Long sales cycles</b>3–6 months is normal. The $6,000 pilot shortens the first yes.</div>
+    <div><b>Getting paid</b>30% upfront by wire before work starts. No credit terms on the first project.</div>
+    <div><b>Arabic quality</b>Pay a native reviewer for every release. Bad Arabic loses the deal on the first screen.</div></div></article>
+  </div></section>`;
+}
+
+/* ================= render & interaction ================= */
+let animToken=0,playTimer=null;
+function render(){
+ const app=document.getElementById('app');
+ st.view=(location.hash||'#sim').slice(1); if(!['sim','rules','money','market','pricing'].includes(st.view)) st.view='sim'; if(SHOT) st.view='sim';
+ document.querySelectorAll('.nav a').forEach(a=>a.setAttribute('aria-current',a.getAttribute('href')==='#'+st.view?'page':'false'));
+ document.querySelectorAll('[data-market]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.market===st.market));
+ document.querySelectorAll('[data-lang]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.lang===st.lang));
+ app.innerHTML=st.view==='sim'?viewSim():st.view==='rules'?viewRules():st.view==='money'?viewMoney():st.view==='market'?viewMarket():viewPricing();
+ if(st.view==='money') calc();
+ if(st.view==='sim') animate();
+}
+function go(i){ st.step=Math.max(0,Math.min(STEPS.length-1,i)); st.sub={}; st.ctab=STEPS[st.step].tab; if(window.innerWidth<=760) st.app=STEPS[st.step].app; render(); }
+function next(){ if(st.step<STEPS.length-1) go(st.step+1); else if(st.play) togglePlay(); }
+function togglePlay(){ st.play=!st.play; clearInterval(playTimer); if(st.play){ playTimer=setInterval(()=>{ if(st.step>=STEPS.length-1) go(0); else { completeSub(); render(); setTimeout(()=>{ if(st.play) next(); },1500);} },7000);} render(); }
+
+function animate(){
+ const tok=++animToken, still=!!SHOT||matchMedia('(prefers-reduced-motion: reduce)').matches, alive=()=>tok===animToken;
+ document.querySelectorAll('.carmk').forEach(g=>{const p=document.getElementById(g.dataset.path);if(!p)return;const len=p.getTotalLength();const place=fr=>{const pt=p.getPointAtLength(len*fr);g.setAttribute('transform',`translate(${pt.x},${pt.y})`);};
+  if(g.dataset.at==='anim'){ if(still){place(.55);return;} const t0=performance.now(); const loop=n=>{ if(!alive()||!g.isConnected) return; place(((n-t0)/9000)%1); requestAnimationFrame(loop); }; requestAnimationFrame(loop); } else place(+g.dataset.at); });
+ if(K()==='match'){ const c=document.getElementById('cd'),n=document.getElementById('cdn'); let left=15;
+  if(still){c&&c.setAttribute('stroke-dashoffset',170*4/15); n&&(n.textContent=11);} else {const iv=setInterval(()=>{ if(!alive()||!c||!c.isConnected){clearInterval(iv);return;} left=left<=0?15:left-1; c.setAttribute('stroke-dashoffset',170*(15-left)/15); n.textContent=left; },1000);} }
+ if(K()==='invoice'&&ksa()){ const el=document.getElementById('qr'); if(el&&window.QRCode){ try{ new QRCode(el,{text:tlvBase64(),width:168,height:168,correctLevel:QRCode.CorrectLevel.M}); }catch(e){} } }
+ document.querySelectorAll('[data-swipe]').forEach(sw=>{const knob=sw.querySelector('.knob');let sx=0,dx=0,drag=false;const rtl=getComputedStyle(sw).direction==='rtl';const max=()=>sw.clientWidth-56;
+  knob.addEventListener('pointerdown',e=>{drag=true;sx=e.clientX;dx=0;sw.classList.add('drag');knob.setPointerCapture(e.pointerId);e.stopPropagation();});
+  knob.addEventListener('pointermove',e=>{if(!drag)return;dx=(e.clientX-sx)*(rtl?-1:1);dx=Math.max(0,Math.min(max(),dx));knob.style.transform=`translateX(${rtl?-dx:dx}px)`;});
+  const up=()=>{if(!drag)return;drag=false;sw.classList.remove('drag');if(dx>max()*.75)next();else knob.style.transform='';};
+  knob.addEventListener('pointerup',up);knob.addEventListener('pointercancel',up);
+  sw.addEventListener('click',e=>{if(e.target===sw)next();}); });
+}
+
+document.addEventListener('click',e=>{
+ const b=e.target.closest('button,[data-act]'); if(!b) return; const S=st.sub, d=b.dataset;
+ if(d.market){st.market=d.market;st.sub={};save();render();}
+ else if(d.lang){st.lang=d.lang;save();render();}
+ else if(d.step) go(+d.step);
+ else if(d.act==='next') next();
+ else if(d.act==='prev') go(st.step-1);
+ else if(d.act==='restart'){ if(st.play) togglePlay(); go(0); }
+ else if(d.act==='play') togglePlay();
+ else if(d.veh){st.vehicle[st.market]=d.veh;render();}
+ else if(d.pay){st.pay[st.market]=d.pay;render();}
+ else if(d.brand){st.brand=d.brand;render();}
+ else if(d.app){st.app=d.app;render();}
+ else if(d.ctab){st.ctab=d.ctab;render();}
+ else if(d.up!==undefined){S.up=[...new Set([...(S.up||[]),+d.up])];render();}
+ else if(d.key!==undefined){const k=d.key;let p=S.pin||'';if(k==='C')p='';else if(k==='⌫')p=p.slice(0,-1);else if(p.length<4)p+=k;S.pin=p;render();}
+ else if(d.star){S.stars=+d.star;render();}
+ else if(d.tip){S.tip=+d.tip;render();}
+ else if(d.do){
+  const a=d.do;
+  if(a==='next') next();
+  else if(a==='otp'){S.otp=true;render();}
+  else if(a==='id'){S.id=true;render();}
+  else if(a==='face'){S.face=1;render();const tok=animToken;setTimeout(()=>{if(tok===animToken&&K()==='face'){S.face=2;render();}},2000);}
+  else if(a==='sos'){S.sos=true;st.ctab='overview';render();}
+  else if(a==='sosack'){S.sosAck=true;render();}
+  else if(a==='rate'){S.rated=true;render();}
+  else if(a==='ticket'){S.ticket=true;st.ctab='support';render();}
+  else if(a==='resolve'){S.resolved=true;render();}
+ }
+});
+document.addEventListener('input',e=>{if(st.view==='money'&&e.target.closest('#app'))calc();});
+document.addEventListener('change',e=>{if(e.target.id==='bc-tier')calc();});
+document.addEventListener('keydown',e=>{if(st.view!=='sim'||e.target.closest('input,select'))return;if(e.key==='ArrowRight')next();if(e.key==='ArrowLeft')go(st.step-1);});
+window.addEventListener('hashchange',render);
+render();
+</script>
